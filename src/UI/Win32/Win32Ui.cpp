@@ -38,6 +38,7 @@
 #include <shellapi.h>
 #include <objbase.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -69,7 +70,7 @@ int   gScrollY = 0, gCanvasH = 0;
 std::deque<Node> gNodes; //tree items point into this (lParam = index)
 Node             gPaneNode;
 
-enum Kind { K_SLIDER, K_COMBO, K_CHECK, K_EDIT };
+enum Kind { K_SLIDER, K_COMBO, K_CHECK, K_EDIT, K_MEMO, K_BUTTON, K_INDEX };
 
 struct Ctl {
     Param  p;
@@ -78,6 +79,8 @@ struct Ctl {
     double value = 0;     //last value known (engine units)
     bool   known = false; //a reply has arrived
     int    lastSentPos = -1;
+    Ctl   *target = nullptr; //K_INDEX: the control showing the chosen element
+    std::string base;        //an array element's path without its number
 };
 std::vector<std::unique_ptr<Ctl>> gCtls;
 std::map<std::string, Ctl *>      gByPath;
@@ -272,6 +275,12 @@ int valueToPos(const Param &p, double v)
 
 std::wstring ctlValueText(const Ctl &c)
 {
+    if(c.kind == K_INDEX) {
+        const int pos = (int)SendMessageW(c.ctl, TBM_GETPOS, 0, 0);
+        return c.p.label.substr(0, c.p.label.find(L" number")) + L" " +
+               std::to_wstring(pos + 1) + L" of " +
+               std::to_wstring((long long)std::lround(c.p.max) + 1);
+    }
     if(c.kind == K_SLIDER) {
         const int pos = (int)SendMessageW(c.ctl, TBM_GETPOS, 0, 0);
         //the exact value while the slider sits at its position
@@ -302,7 +311,7 @@ void showValue(Ctl &c)
             SendMessageW(c.ctl, BM_SETCHECK,
                          c.value != 0 ? BST_CHECKED : BST_UNCHECKED, 0);
             break;
-        case K_EDIT:
+        default:
             break;
     }
     if(GetFocus() == c.ctl)
@@ -325,9 +334,23 @@ void sendValue(Ctl &c, double v)
 
 void sendText(Ctl &c)
 {
-    wchar_t buf[1024] = L"";
-    GetWindowTextW(c.ctl, buf, 1024);
-    send(c.p.path.c_str(), "s", narrow(buf).c_str());
+    const int n = GetWindowTextLengthW(c.ctl);
+    std::wstring buf(n + 1, L'\0');
+    GetWindowTextW(c.ctl, &buf[0], n + 1);
+    buf.resize(n);
+    std::string t = narrow(buf);
+    //the engine separates lines with a line feed only
+    t.erase(std::remove(t.begin(), t.end(), '\r'), t.end());
+    send(c.p.path.c_str(), "s", t.c_str());
+}
+
+void runAction(Ctl &c)
+{
+    if(c.p.actionArg >= 0)
+        send(c.p.path.c_str(), "i", c.p.actionArg);
+    else
+        send(c.p.path.c_str(), "");
+    say(c.p.label + L": done");
 }
 
 double defaultOf(const Param &p, bool *ok)
@@ -398,6 +421,8 @@ std::wstring nodeTitle(HTREEITEM item)
     return t;
 }
 
+Ctl *addControl(const Param &p, Kind kind, int id);
+
 void buildPane(const Node &n, const std::wstring &title)
 {
     SendMessageW(gCanvas, WM_SETREDRAW, FALSE, 0);
@@ -412,62 +437,37 @@ void buildPane(const Node &n, const std::wstring &title)
 
     int id = kFirstCtlId;
     for(Param &p : ps) {
-        auto c = std::make_unique<Ctl>();
-        c->p   = p;
-        if(!p.options.empty())
-            c->kind = K_COMBO;
-        else if(p.type == 'T')
-            c->kind = K_CHECK;
-        else if(p.type == 's')
-            c->kind = K_EDIT;
-        else
-            c->kind = K_SLIDER;
-
-        if(c->kind != K_CHECK)
-            c->label = makeChild(L"STATIC", (p.label + L":").c_str(),
-                                 SS_LEFT | SS_NOPREFIX, -1);
-        switch(c->kind) {
-            case K_SLIDER:
-                c->ctl = makeChild(TRACKBAR_CLASSW, L"",
-                                   WS_TABSTOP | TBS_HORZ | TBS_NOTICKS |
-                                   TBS_DOWNISLEFT, id);
-                SendMessageW(c->ctl, TBM_SETRANGEMIN, FALSE, 0);
-                SendMessageW(c->ctl, TBM_SETRANGEMAX, FALSE, positions(p));
-                SendMessageW(c->ctl, TBM_SETLINESIZE, 0, 1);
-                SendMessageW(c->ctl, TBM_SETPAGESIZE, 0,
-                             positions(p) >= 20 ? positions(p) / 10 : 1);
-                {
-                    Ctl *raw = c.get();
-                    access::setValueText(c->ctl, [raw](HWND) {
-                        return ctlValueText(*raw);
-                    });
-                }
-                break;
-            case K_COMBO:
-                c->ctl = makeChild(WC_COMBOBOXW, L"",
-                                   WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST,
-                                   id);
-                for(auto &o : p.options) {
-                    int i = (int)SendMessageW(c->ctl, CB_ADDSTRING, 0,
-                                              (LPARAM)o.second.c_str());
-                    SendMessageW(c->ctl, CB_SETITEMDATA, i, o.first);
-                }
-                break;
-            case K_CHECK:
-                c->ctl = makeChild(WC_BUTTONW, p.label.c_str(),
-                                   WS_TABSTOP | BS_AUTOCHECKBOX, id);
-                break;
-            case K_EDIT:
-                c->ctl = makeChild(WC_EDITW, L"",
-                                   WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, id);
-                break;
+        if(p.count > 0) {
+            //an array: which element, then its value
+            Param ip;
+            ip.name  = p.name + "#";
+            ip.path  = p.path + "#";
+            ip.type  = 'i';
+            ip.min   = 0;
+            ip.max   = p.count - 1;
+            ip.label = p.indexName + L" number, for " + p.label;
+            ip.doc   = L"Chooses which " + p.indexName + L" the next control "
+                       L"edits";
+            Ctl *index = addControl(ip, K_INDEX, id++);
+            Param vp = p;
+            vp.path  = p.path + "0";
+            vp.label = p.label + L", " + p.indexName + L" 1";
+            Ctl *value = addControl(vp, K_SLIDER, id++);
+            index->target = value;
+            value->base   = p.path;
+            index->known  = true;
+            continue;
         }
-        access::setName(c->ctl, p.label);
-        access::setDescription(c->ctl, p.doc);
-        gByPath[p.path]   = c.get();
-        gByHwnd[c->ctl]   = c.get();
-        gCtls.push_back(std::move(c));
-        ++id;
+        Kind k = K_SLIDER;
+        if(p.action)
+            k = K_BUTTON;
+        else if(!p.options.empty())
+            k = K_COMBO;
+        else if(p.type == 'T')
+            k = K_CHECK;
+        else if(p.type == 's')
+            k = p.multiline ? K_MEMO : K_EDIT;
+        addControl(p, k, id++);
     }
 
     gScrollY = 0;
@@ -476,7 +476,92 @@ void buildPane(const Node &n, const std::wstring &title)
     InvalidateRect(gCanvas, nullptr, TRUE);
 
     for(auto &c : gCtls)
-        request(c->p.path);
+        if(c->kind != K_BUTTON && c->kind != K_INDEX)
+            request(c->p.path);
+}
+
+Ctl *addControl(const Param &p, Kind kind, int id)
+{
+    auto c  = std::make_unique<Ctl>();
+    c->p    = p;
+    c->kind = kind;
+    if(kind != K_CHECK && kind != K_BUTTON)
+        c->label = makeChild(L"STATIC", (p.label + L":").c_str(),
+                             SS_LEFT | SS_NOPREFIX, -1);
+    switch(kind) {
+        case K_SLIDER:
+        case K_INDEX:
+            c->ctl = makeChild(TRACKBAR_CLASSW, L"",
+                               WS_TABSTOP | TBS_HORZ | TBS_NOTICKS |
+                               TBS_DOWNISLEFT, id);
+            SendMessageW(c->ctl, TBM_SETRANGEMIN, FALSE, 0);
+            SendMessageW(c->ctl, TBM_SETRANGEMAX, FALSE, positions(p));
+            SendMessageW(c->ctl, TBM_SETLINESIZE, 0, 1);
+            SendMessageW(c->ctl, TBM_SETPAGESIZE, 0,
+                         positions(p) >= 20 ? positions(p) / 10 : 1);
+            {
+                Ctl *raw = c.get();
+                access::setValueText(c->ctl, [raw](HWND) {
+                    return ctlValueText(*raw);
+                });
+            }
+            break;
+        case K_COMBO:
+            c->ctl = makeChild(WC_COMBOBOXW, L"",
+                               WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, id);
+            for(auto &o : p.options) {
+                int i = (int)SendMessageW(c->ctl, CB_ADDSTRING, 0,
+                                          (LPARAM)o.second.c_str());
+                SendMessageW(c->ctl, CB_SETITEMDATA, i, o.first);
+            }
+            break;
+        case K_CHECK:
+            c->ctl = makeChild(WC_BUTTONW, p.label.c_str(),
+                               WS_TABSTOP | BS_AUTOCHECKBOX, id);
+            break;
+        case K_BUTTON:
+            c->ctl = makeChild(WC_BUTTONW, p.label.c_str(),
+                               WS_TABSTOP | BS_PUSHBUTTON, id);
+            break;
+        case K_EDIT:
+            c->ctl = makeChild(WC_EDITW, L"",
+                               WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, id);
+            break;
+        case K_MEMO:
+            c->ctl = makeChild(WC_EDITW, L"",
+                               WS_TABSTOP | WS_BORDER | WS_VSCROLL |
+                               ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL,
+                               id);
+            break;
+    }
+    access::setName(c->ctl, p.label);
+    access::setDescription(c->ctl, p.doc);
+    Ctl *raw = c.get();
+    if(kind != K_BUTTON && kind != K_INDEX)
+        gByPath[p.path] = raw;
+    gByHwnd[c->ctl] = raw;
+    gCtls.push_back(std::move(c));
+    return raw;
+}
+
+//! An array's element chooser moved: the value control edits that element
+void chooseElement(Ctl &index, int i)
+{
+    index.value = i;
+    Ctl *t = index.target;
+    if(!t)
+        return;
+    gByPath.erase(t->p.path);
+    t->p.path = t->base + std::to_string(i);
+    t->known  = false;
+    gByPath[t->p.path] = t;
+    const std::wstring name = t->p.label.substr(0, t->p.label.rfind(L", ")) +
+                              L", " + index.p.label.substr(0, index.p.label.find(L" number")) +
+                              L" " + std::to_wstring(i + 1);
+    t->p.label = name;
+    access::setName(t->ctl, name);
+    SetWindowTextW(t->label, (name + L":").c_str());
+    request(t->p.path);
 }
 
 void layoutCanvas()
@@ -502,8 +587,12 @@ void layoutCanvas()
         }
     }
     for(auto &c : gCtls) {
-        if(c->kind == K_CHECK) {
-            MoveWindow(c->ctl, margin, y, w - 2 * margin, px(22), FALSE);
+        if(c->kind == K_CHECK || c->kind == K_BUTTON) {
+            MoveWindow(c->ctl, margin, y, w - 2 * margin, px(24), FALSE);
+        } else if(c->kind == K_MEMO) {
+            MoveWindow(c->label, margin, y + px(3), w - 2 * margin, px(20), FALSE);
+            MoveWindow(c->ctl, margin, y + px(24), w - 2 * margin, px(120), FALSE);
+            y += px(124);
         } else {
             MoveWindow(c->label, margin, y + px(3), labelW, px(20), FALSE);
             MoveWindow(c->ctl, ctlX, y,
@@ -1381,6 +1470,11 @@ LRESULT CALLBACK canvasProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
             const int pos = (int)SendMessageW(c.ctl, TBM_GETPOS, 0, 0);
             if(LOWORD(wp) == TB_ENDTRACK)
                 return 0;
+            if(c.kind == K_INDEX) {
+                if(pos != (int)c.value)
+                    chooseElement(c, pos);
+                return 0;
+            }
             if(c.known && pos == valueToPos(c.p, c.value))
                 return 0; //nothing moved
             sendValue(c, posToValue(c.p, pos));
@@ -1397,8 +1491,11 @@ LRESULT CALLBACK canvasProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
                     sendValue(c, (double)SendMessageW(c.ctl, CB_GETITEMDATA, i, 0));
             } else if(c.kind == K_CHECK && HIWORD(wp) == BN_CLICKED) {
                 sendValue(c, SendMessageW(c.ctl, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            } else if(c.kind == K_EDIT && HIWORD(wp) == EN_KILLFOCUS) {
+            } else if((c.kind == K_EDIT || c.kind == K_MEMO) &&
+                      HIWORD(wp) == EN_KILLFOCUS) {
                 sendText(c);
+            } else if(c.kind == K_BUTTON && HIWORD(wp) == BN_CLICKED) {
+                runAction(c);
             }
             return 0;
         }
@@ -1542,7 +1639,26 @@ bool handleKey(MSG &m)
     }
     Ctl &c = *it->second;
     const bool ctrl = GetKeyState(VK_CONTROL) < 0, alt = GetKeyState(VK_MENU) < 0;
+    const bool shift = GetKeyState(VK_SHIFT) < 0;
+    if(c.kind == K_MEMO) {
+        //several lines of text: Enter is a new line, Ctrl+Enter applies,
+        //Tab still moves on
+        if(m.wParam == VK_RETURN && ctrl) {
+            sendText(c);
+            say(L"Applied");
+            return true;
+        }
+        if(m.wParam == VK_TAB && !ctrl && !alt) {
+            HWND next = GetNextDlgTabItem(gMain, c.ctl, shift);
+            if(next)
+                SetFocus(next);
+            return true;
+        }
+        return false;
+    }
     if(ctrl || alt)
+        return false;
+    if(c.kind == K_BUTTON || c.kind == K_INDEX)
         return false;
     if(m.wParam == VK_RETURN) {
         if(c.kind == K_SLIDER) {
@@ -1629,8 +1745,16 @@ void handleMessage(const char *msg)
             case 'T': c.value = 1; break;
             case 'F': c.value = 0; break;
             case 's':
-                if(c.kind == K_EDIT && GetFocus() != c.ctl)
-                    SetWindowTextW(c.ctl, widen(a.s).c_str());
+                if((c.kind == K_EDIT || c.kind == K_MEMO) &&
+                   GetFocus() != c.ctl) {
+                    std::wstring t = widen(a.s), shown;
+                    for(wchar_t ch : t) { //an edit box breaks lines at \r\n
+                        if(ch == L'\n' && c.kind == K_MEMO)
+                            shown += L'\r';
+                        shown += ch;
+                    }
+                    SetWindowTextW(c.ctl, shown.c_str());
+                }
                 return;
             default: return;
         }

@@ -16,6 +16,7 @@
 
 namespace zynui {
 struct Param;
+struct Node;
 
 namespace overlay {
 
@@ -34,6 +35,13 @@ void arrange(const std::string &nodePath, std::vector<Param> &params);
 
 //! A value in its unit where the engine's own conversion is known; "" if not
 std::wstring formatValue(const Param &p, double v);
+
+//! What an array's elements are called ("Harmonic", "Point", "Key")
+std::wstring arrayIndexName(const std::string &base);
+
+//! Controls the metadata does not mark as parameters: actions (buttons)
+//! and the tuning texts
+void addExtras(const Node &n, std::vector<Param> &params);
 
 }
 }

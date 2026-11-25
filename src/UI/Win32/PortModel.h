@@ -39,6 +39,12 @@ struct Param {
     std::string  defaultValue; //!< as the engine gives it, may be empty
     std::vector<std::pair<int, std::wstring>> options; //!< choices
     bool         action = false; //!< takes no value: a button
+    int          actionArg = -1; //!< an action's integer argument, -1 none
+    int          count = 0;      //!< an array (harmonics, points): its size;
+                                 //!< path is then the element path without
+                                 //!< its number
+    std::wstring indexName;      //!< an array's element: "Harmonic", "Point"
+    bool         multiline = false; //!< text of several lines
 };
 
 //! One node of the tree: a group of parameters and further groups

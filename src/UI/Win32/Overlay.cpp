@@ -106,6 +106,12 @@ std::wstring paramLabel(const std::string &, const std::string &base,
         {"efftype",  L"Effect type"},
         {"preset",   L"Effect preset"},
         {"Pkeyshift", L"Key shift"},
+        {"magnitude", L"Harmonic magnitude"},
+        {"phase",     L"Harmonic phase"},
+        {"Penvval",   L"Point value"},
+        {"Penvdt",    L"Point time"},
+        {"Prespoints", L"Resonance point"},
+        {"Pmapping",  L"Mapped scale degree"},
     };
     auto it = names.find(base);
     if(it != names.end())
@@ -163,6 +169,103 @@ void arrange(const std::string &, std::vector<Param> &params)
         if(seen[p.label] > 1)
             p.label += L" (" + widen(p.name) + L")";
     params.swap(kept);
+}
+
+std::wstring arrayIndexName(const std::string &base)
+{
+    if(base == "magnitude" || base == "phase")
+        return L"Harmonic";
+    if(base == "Penvval" || base == "Penvdt" || base == "envval" ||
+       base == "envdt" || base == "Prespoints")
+        return L"Point";
+    if(base == "Pmapping")
+        return L"Key";
+    return L"Item";
+}
+
+//! The last segment of a node path: "/part0/kit0/adpars/" -> "adpars"
+static std::string lastSegment(const std::string &path)
+{
+    std::string p = path;
+    if(!p.empty() && p.back() == '/')
+        p.pop_back();
+    size_t s = p.rfind('/');
+    std::string seg = s == std::string::npos ? p : p.substr(s + 1);
+    while(!seg.empty() && isdigit((unsigned char)seg.back()))
+        seg.pop_back(); //"part0" -> "part"
+    return seg;
+}
+
+static Param action(const std::string &nodePath, const char *port,
+                    const wchar_t *label, const wchar_t *doc, int arg = -1)
+{
+    Param a;
+    a.name      = port;
+    a.path      = nodePath + port;
+    a.label     = label;
+    a.doc       = doc;
+    a.action    = true;
+    a.actionArg = arg;
+    return a;
+}
+
+void addExtras(const Node &n, std::vector<Param> &params)
+{
+    const std::string seg = lastSegment(n.path);
+    if(n.path == "/")
+        params.push_back(action("/", "Panic", L"Stop all sound",
+                                L"Silences every note at once"));
+    if(seg == "part" && n.path.find('/', 1) == n.path.size() - 1) {
+        params.push_back(action(n.path, "captureMin",
+            L"Lowest key: take the last note played",
+            L"Sets the lowest key of the part to the last note played"));
+        params.push_back(action(n.path, "captureMax",
+            L"Highest key: take the last note played",
+            L"Sets the highest key of the part to the last note played"));
+    }
+    if(seg == "OscilSmp" || seg == "FMSmp" || seg == "oscilgen") {
+        params.push_back(action(n.path, "convert2sine",
+            L"Convert to sine harmonics",
+            L"Turns the current waveform into its harmonics on a sine base "
+            L"function"));
+        params.push_back(action(n.path, "use-as-base",
+            L"Use as base function",
+            L"Makes the current waveform the base function"));
+    }
+    if(seg == "padpars")
+        params.push_back(action(n.path, "prepare",
+            L"Apply changes (rebuild the PADsynth samples)",
+            L"PADsynth settings take effect when its samples are rebuilt"));
+    if(seg == "Reson" || seg == "resonance") {
+        params.push_back(action(n.path, "smooth", L"Smooth the response",
+                                L"Smooths out the frequency response"));
+        params.push_back(action(n.path, "interpolatepeaks",
+            L"Interpolate between peaks",
+            L"Generates the response from its peak values", 0));
+        params.push_back(action(n.path, "randomize", L"Randomize",
+                                L"Randomizes the frequency response", 0));
+        params.push_back(action(n.path, "zero", L"Reset the response",
+                                L"Resets the frequency response to flat"));
+    }
+    if(seg == "microtonal") {
+        Param t;
+        t.name  = "tunings";
+        t.path  = n.path + "tunings";
+        t.type  = t.send = 's';
+        t.multiline = true;
+        t.label = L"Tunings, one step per line";
+        t.doc   = L"Each line is one step of the scale: cents with a decimal "
+                  L"point (like 100.0) or a ratio (like 3/2). The last line "
+                  L"is the octave. Ctrl+Enter applies.";
+        params.push_back(t);
+        Param m = t;
+        m.name  = "mapping";
+        m.path  = n.path + "mapping";
+        m.label = L"Key mapping, one key per line";
+        m.doc   = L"Each line maps a key to a scale degree; x leaves the key "
+                  L"silent. Used when mapping is enabled. Ctrl+Enter applies.";
+        params.push_back(m);
+    }
 }
 
 static bool contains(const std::wstring &hay, const wchar_t *needle)

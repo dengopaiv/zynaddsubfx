@@ -175,15 +175,18 @@ std::vector<Param> params(const Node &n)
         std::string base, args;
         int count;
         splitName(p.name, base, count, args);
-        if(count > 0 || base.empty())
-            continue; //arrays (harmonics, envelope points) get editors of their own
+        if(base.empty())
+            continue;
         if(!seen.insert(base).second)
             continue;
 
         auto  meta = p.meta();
         Param q;
-        q.name = base;
-        q.path = n.path + base;
+        q.name  = base;
+        q.path  = n.path + base;
+        q.count = count; //an array: one element at a time
+        if(count > 0)
+            q.indexName = overlay::arrayIndexName(base);
 
         const char *a = args.c_str();
         if(strchr(a, 'f'))      q.type = 'f';
@@ -227,6 +230,7 @@ std::vector<Param> params(const Node &n)
         }
         out.push_back(q);
     }
+    overlay::addExtras(n, out);
     overlay::arrange(n.path, out);
     return out;
 }
