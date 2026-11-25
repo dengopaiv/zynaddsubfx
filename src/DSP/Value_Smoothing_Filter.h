@@ -52,7 +52,7 @@ public:
 
     void sample_rate ( nframes_t n );
 
-    bool apply( sample_t * __restrict__ dst, nframes_t nframes, float gt );
+    bool apply( sample_t * __restrict dst, nframes_t nframes, float gt );
 };
 
 #endif

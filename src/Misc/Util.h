@@ -70,6 +70,21 @@ void os_usleep(long length);
 //! returns pid padded to maximum pid length, posix conform
 std::string os_pid_as_padded_string();
 
+//! the process id
+int os_getpid();
+
+//! the user's home directory: $HOME, else %USERPROFILE% (Windows), else "."
+std::string os_home_dir();
+
+//! directory for autosaves, without trailing separator; created if needed.
+//! $HOME/.local on POSIX, %LOCALAPPDATA%/ZynAddSubFX on Windows
+std::string os_autosave_dir();
+
+//! path of the configuration file.
+//! $HOME/.zynaddsubfxXML.cfg on POSIX,
+//! %APPDATA%/ZynAddSubFX/zynaddsubfxXML.cfg on Windows (directory created)
+std::string os_config_file();
+
 std::string legalizeFilename(std::string filename);
 
 void invSignal(float *sig, size_t len);

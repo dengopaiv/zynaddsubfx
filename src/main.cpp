@@ -29,6 +29,12 @@
 #endif
 #include <getopt.h>
 
+#ifdef WIN32
+// before any "using namespace std": the SDK's byte would clash with std::byte
+#include <windows.h>
+#include <mmsystem.h>
+#endif
+
 #include <sys/types.h>
 #include <signal.h>
 
@@ -142,8 +148,6 @@ void exitprogram(const Config& config)
 
 //Windows MIDI OH WHAT A HACK...
 #ifdef WIN32
-#include <windows.h>
-#include <mmsystem.h>
 namespace zyn{
 extern InMgr  *in;
 }

@@ -109,7 +109,12 @@ SET (NoNeonPlease False CACHE BOOL
 SET (PluginLibDir "lib" CACHE STRING
     "Install directory for plugin libraries PREFIX/PLUGIN_LIB_DIR/{lv2,vst}")
 SET (DemoMode FALSE CACHE BOOL "Enable 10 minute silence")
-SET (PluginEnable TRUE CACHE BOOL "Enable Plugins")
+if(MSVC)
+    # the DPF plugin build files still assume GCC/Clang flags
+    SET (PluginEnable FALSE CACHE BOOL "Enable Plugins")
+else()
+    SET (PluginEnable TRUE CACHE BOOL "Enable Plugins")
+endif()
 SET (ZynFusionDir "" CACHE STRING "Developers only: zest binary's dir; useful if fusion is not system-installed.")
 mark_as_advanced(FORCE ZynFusionDir)
 
@@ -372,9 +377,24 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "CYGWIN")
     add_definitions(-D_GNU_SOURCE=1 -D_POSIX_THREAD_PRIO_INHERIT=1)
 endif()
 
-add_compile_options(-Wall -Wextra)
+if(MSVC)
+    # C4244/C4267: implicit narrowing conversions, which GCC's -Wall -Wextra
+    # do not report either; the code base relies on them throughout
+    add_compile_options(/W3 /bigobj /utf-8 /fp:fast /wd4244 /wd4267)
+    add_compile_definitions(_USE_MATH_DEFINES NOMINMAX WIN32_LEAN_AND_MEAN
+        _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
+    # main.cpp uses getopt_long(), which MSVC's C library lacks
+    find_path(GETOPT_INCLUDE_DIR getopt.h REQUIRED)
+    find_library(GETOPT_LIBRARY getopt REQUIRED)
+    include_directories(${GETOPT_INCLUDE_DIR})
+else()
+    add_compile_options(-Wall -Wextra)
+endif()
 # Check for -W... and if available, add compile option -Wno-...
 function (zyn_disable_warning W_FLAG)
+    if(MSVC)
+        return()
+    endif()
     string(TOUPPER "${W_FLAG}" CACHE_VAR)
     string(REPLACE "-" "_" CACHE_VAR "${CACHE_VAR}")
     set(_CACHE_VAR "HAVE_WARNING_${CACHE_VAR}")
@@ -400,7 +420,9 @@ if (BuildForDebug)
 else (BuildForDebug)
 	set (CMAKE_BUILD_TYPE "Release")
 	
-	add_compile_options("$<$<CONFIG:Release>:${ZynBuildOptionsBasic}>")
+	if(NOT MSVC)
+		add_compile_options("$<$<CONFIG:Release>:${ZynBuildOptionsBasic}>")
+	endif()
 
 	if (BuildForAMD_X86_64)
 		add_compile_options($<$<CONFIG:Release>:${ZynBuildOptions_x86_64AMD}>)
@@ -410,11 +432,11 @@ else (BuildForDebug)
 		add_compile_options($<$<CONFIG:Release>:${ZynBuildOptions_X86_64Core2}>)
 	endif (BuildForCore2_X86_64)
 
-	if (SUPPORT_SSE)
+	if (SUPPORT_SSE AND NOT MSVC)
 		add_compile_options("$<$<CONFIG:Release>:${ZynBuildOptions_SSE}>")
 	endif (SUPPORT_SSE)
 	
-	if (SUPPORT_NEON AND NOT NoNeonPlease)
+	if (SUPPORT_NEON AND NOT NoNeonPlease AND NOT MSVC)
 		add_compile_options($<$<CONFIG:Release>:${ZynBuildOptions_NEON}>)
 	endif (SUPPORT_NEON AND NOT NoNeonPlease)
 
@@ -552,7 +574,11 @@ add_library(zynaddsubfx_core STATIC
 	${zynaddsubfx_synth_SRCS}
 	)
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+if(MSVC)
+    # std::thread etc. need no extra library with MSVC
+    set(PTHREAD_LIBRARY "")
+    set(PLATFORM_LIBRARIES ws2_32 winmm iphlpapi ${GETOPT_LIBRARY})
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(PTHREAD_LIBRARY winpthread)
     set(PLATFORM_LIBRARIES ws2_32
             winmm

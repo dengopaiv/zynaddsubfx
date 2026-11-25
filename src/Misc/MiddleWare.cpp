@@ -26,7 +26,6 @@
 #include <rtosc/port-sugar.h>
 #include <lo/lo.h>
 
-#include <unistd.h>
 
 #include "../UI/Connection.h"
 #include "../UI/Fl_Osc_Interface.h"
@@ -566,7 +565,6 @@ public:
         assert(filename);
 
         //load part in async fashion when possible
-#ifndef WIN32
         auto alloc = std::async(std::launch::async,
                 [master,filename,this,npart](){
                 Part *p = new Part(*master->memory, synth,
@@ -596,23 +594,6 @@ public:
         }
 
         Part *p = alloc.get();
-#else
-        Part *p = new Part(*master->memory, synth, master->time,
-                config->cfg.GzipCompression,
-                config->cfg.Interpolation,
-                &master->microtonal, master->fft);
-        p->partno  = npart % NUM_MIDI_CHANNELS;
-        p->Prcvchn = npart % NUM_MIDI_CHANNELS;
-
-        if(p->loadXMLinstrument(filename))
-            fprintf(stderr, "Warning: failed to load part<%s>!\n", filename);
-
-        auto isLateLoad = [this,npart]{
-            return actual_load[npart] != pending_load[npart];
-        };
-
-        p->applyparameters(isLateLoad);
-#endif
 
         obj_store.extractPart(p, npart);
         kits.extractPart(p, npart);
@@ -1664,7 +1645,7 @@ static rtosc::Ports middwareSnoopPortsWithoutNonRtParams = {
     {"reload_auto_save:i", 0, 0,
         rBegin
         const int save_id      = rtosc_argument(msg,0).i;
-        const string save_dir  = string(getenv("HOME")) + "/.local";
+        const string save_dir  = os_autosave_dir();
         const string save_file = "zynaddsubfx-"+to_s(save_id)+"-autosave.xmz";
         const string save_loc  = save_dir + "/" + save_file;
         impl.loadMaster(save_loc.c_str());
@@ -1675,7 +1656,7 @@ static rtosc::Ports middwareSnoopPortsWithoutNonRtParams = {
     {"delete_auto_save:i", 0, 0,
         rBegin
         const int save_id      = rtosc_argument(msg,0).i;
-        const string save_dir  = string(getenv("HOME")) + "/.local";
+        const string save_dir  = os_autosave_dir();
         const string save_file = "zynaddsubfx-"+to_s(save_id)+"-autosave.xmz";
         const string save_loc  = save_dir + "/" + save_file;
         remove(save_loc.c_str());
@@ -1901,8 +1882,7 @@ MiddleWareImpl::MiddleWareImpl(MiddleWare *mw, SYNTH_T synth_,
     presetsstore(*config), autoSave(-1, [this]() {
             auto master = this->master;
             this->doReadOnlyOp([master](){
-                std::string home = getenv("HOME");
-                std::string save_file = home+"/.local/zynaddsubfx-"+to_s(getpid())+"-autosave.xmz";
+                std::string save_file = os_autosave_dir()+"/zynaddsubfx-"+to_s(os_getpid())+"-autosave.xmz";
                 printf("doing an autosave <%s>...\n", save_file.c_str());
                 int res = master->saveXML(save_file.c_str());
                 (void)res;});})
@@ -2437,8 +2417,7 @@ int MiddleWare::checkAutoSave(void) const
     namespace fs = std::filesystem;
 
     //save spec zynaddsubfx-PID-autosave.xmz
-    const std::string home     = getenv("HOME");
-    const std::string save_dir = home+"/.local/";
+    const std::string save_dir = os_autosave_dir()+"/";
 
     int    reload_save = -1;
 
@@ -2478,8 +2457,7 @@ int MiddleWare::checkAutoSave(void) const
 
 void MiddleWare::removeAutoSave(void)
 {
-    std::string home = getenv("HOME");
-    std::string save_file = home+"/.local/zynaddsubfx-"+to_s(getpid())+"-autosave.xmz";
+    std::string save_file = os_autosave_dir()+"/zynaddsubfx-"+to_s(os_getpid())+"-autosave.xmz";
     remove(save_file.c_str());
 }
 

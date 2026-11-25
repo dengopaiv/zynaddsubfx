@@ -36,7 +36,15 @@ else()
 
     set(RTOSC_NO_INSTALL TRUE)
     include("rtosc/cmake/ColorMessage.cmake")
+    if(MSVC)
+        # rtosc links the imported target liblo::liblo, which only liblo's
+        # CMake config package (e.g. from vcpkg) provides
+        set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+    endif()
     add_subdirectory(rtosc)
+    if(MSVC)
+        set(CMAKE_FIND_PACKAGE_PREFER_CONFIG OFF)
+    endif()
     include_directories(rtosc/include)
 endif()
 

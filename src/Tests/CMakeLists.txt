@@ -25,7 +25,7 @@ add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 #Extra libraries added to make test and full compilation use the same library
 #links for quirky compilers
 set(test_lib zynaddsubfx_core ${GUI_LIBRARIES} ${ZLIB_LIBRARY} ${FFTW3F_LIBRARIES}
-    ${MXML_LIBRARIES} pthread )
+    ${MXML_LIBRARIES} Threads::Threads )
 
 message(STATUS "Linking tests with: ${test_lib}")
 

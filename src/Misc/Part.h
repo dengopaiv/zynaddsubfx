@@ -181,6 +181,11 @@ class Part
 
         const static rtosc::Ports &ports;
 
+        // public so tests can reset the held-note memory; tests compiled with
+        // "#define private public" cannot link against private members on MSVC,
+        // which encodes the access level in symbol names
+        void monomemClear(void);
+
     private:
         void MonoMemRenote(); // MonoMem stuff.
         float getVelocity(uint8_t velocity, uint8_t velocity_sense,
@@ -207,7 +212,6 @@ class Part
         void monomemPop(note_t note);
         note_t monomemBack(void) const;
         bool monomemEmpty(void) const;
-        void monomemClear(void);
 
         short monomemnotes[256]; // A list to remember held notes.
         struct {

@@ -1,6 +1,13 @@
 {
   "dependencies": [
-    "liblo"
+    "liblo",
+    "zlib",
+    "mxml",
+    "fftw3",
+    "portaudio",
+    {
+      "name": "getopt",
+      "platform": "windows & !mingw"
+    }
   ]
 }
-

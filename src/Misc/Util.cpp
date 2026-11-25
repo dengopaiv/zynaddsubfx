@@ -29,7 +29,10 @@
 #endif
 #ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include <process.h>
 #endif
+#include <filesystem>
 
 #define errx(...) {}
 #ifndef errx
@@ -171,7 +174,8 @@ constexpr std::size_t max_pid_len = 12;
 std::size_t os_guess_pid_length()
 {
     const char* pid_max_file = "/proc/sys/kernel/pid_max";
-    if(-1 == access(pid_max_file, R_OK)) {
+    std::error_code ec;
+    if(!std::filesystem::exists(pid_max_file, ec)) {
         return max_pid_len;
     }
     else {
@@ -195,9 +199,70 @@ std::string os_pid_as_padded_string()
     char result_str[max_pid_len << 1];
     std::fill_n(result_str, max_pid_len, '0');
     std::size_t written = snprintf(result_str + max_pid_len, max_pid_len,
+#ifdef _MSC_VER
+        "%d", (int)_getpid());
+#else
         "%d", (int)getpid());
+#endif
     // the below pointer should never cause segfaults:
     return result_str + max_pid_len + written - os_guess_pid_length();
+}
+
+int os_getpid()
+{
+#ifdef _MSC_VER
+    return (int)_getpid();
+#else
+    return (int)getpid();
+#endif
+}
+
+static std::string env_or_empty(const char *name)
+{
+    const char *v = getenv(name);
+    return v ? std::string(v) : std::string();
+}
+
+std::string os_home_dir()
+{
+    std::string home = env_or_empty("HOME");
+#ifdef WIN32
+    if(home.empty())
+        home = env_or_empty("USERPROFILE");
+#endif
+    return home.empty() ? std::string(".") : home;
+}
+
+#ifdef WIN32
+//! %VAR%/ZynAddSubFX, created if needed; falls back to the home directory
+static std::string windows_app_dir(const char *var)
+{
+    std::string base = env_or_empty(var);
+    if(base.empty())
+        return os_home_dir();
+    std::string dir = base + "/ZynAddSubFX";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return ec ? os_home_dir() : dir;
+}
+#endif
+
+std::string os_autosave_dir()
+{
+#ifdef WIN32
+    return windows_app_dir("LOCALAPPDATA");
+#else
+    return os_home_dir() + "/.local";
+#endif
+}
+
+std::string os_config_file()
+{
+#ifdef WIN32
+    return windows_app_dir("APPDATA") + "/zynaddsubfxXML.cfg";
+#else
+    return os_home_dir() + "/.zynaddsubfxXML.cfg";
+#endif
 }
 
 std::string legalizeFilename(std::string filename)

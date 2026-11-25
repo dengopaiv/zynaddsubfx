@@ -31,6 +31,22 @@ static const char *escape_string(const char *msg)
     return out;
 }
 
+//! A metadata number written as valid JSON: C++ literals such as "10.0f",
+//! "0.f" or ".5" become 10.0, 0.0 and 0.5
+static std::string json_number(const char *num)
+{
+    std::string n = num ? num : "0";
+    while(!n.empty() && (n.back() == 'f' || n.back() == 'F' || n.back() == ' '))
+        n.pop_back();
+    if(!n.empty() && n.back() == '.')
+        n += '0';
+    if(!n.empty() && n[0] == '.')
+        n.insert(0, "0");
+    else if(n.size() > 1 && n[0] == '-' && n[1] == '.')
+        n.insert(1, "0");
+    return n.empty() ? std::string("0") : n;
+}
+
 /*
  * root :
  *   - 'parameters' : [parameter...]
@@ -232,9 +248,10 @@ static bool do_dump(const rtosc::Port *p, const char *full_name, void *v)
     o << "        \"type\"     : \"" << type  << "\"";
     if(min && max)
     {
-        o << ",\n        \"range\"    : [" << min << "," << max;
+        o << ",\n        \"range\"    : [" << json_number(min) << ","
+          << json_number(max);
         if(logmin)
-            o << "," << logmin << "]";
+            o << "," << json_number(logmin) << "]";
         else
             o << "]";
     }

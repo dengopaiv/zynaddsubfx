@@ -127,10 +127,11 @@ void BankDb::clear(void)
 
 static std::string getCacheName(void)
 {
-    char name[512] = {};
-    snprintf(name, sizeof(name), "%s%s", getenv("HOME"),
-            "/.zynaddsubfx-bank-cache.xml");
-    return name;
+#ifdef WIN32
+    return os_autosave_dir() + "/zynaddsubfx-bank-cache.xml";
+#else
+    return os_home_dir() + "/.zynaddsubfx-bank-cache.xml";
+#endif
 }
 
 static bvec loadCache(void)
@@ -221,11 +222,10 @@ BankEntry BankDb::processXiz(std::string filename,
     string fname = bank+filename;
 
     //Grab a timestamp
-    struct stat st;
     int time = 0;
 
-    //gah windows, just implement the darn standard APIs
 #ifndef WIN32
+    struct stat st;
     int ret  = lstat(fname.c_str(), &st);
     if(ret != -1)
 # ifdef __APPLE__
@@ -234,8 +234,10 @@ BankEntry BankDb::processXiz(std::string filename,
         time = st.st_mtim.tv_sec;
 # endif
 #else
-    int ret = 0;
-    time = rand();
+    struct _stat64 st;
+    int ret = _stat64(fname.c_str(), &st);
+    if(ret != -1)
+        time = (int)st.st_mtime;
 #endif
 
 
