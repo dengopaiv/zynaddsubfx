@@ -1,12 +1,8 @@
-image::https://travis-ci.org/zynaddsubfx/zynaddsubfx.svg?branch=master[alt="Build status", link="https://travis-ci.org/zynaddsubfx/zynaddsubfx"]
-
 ZynAddSubFX
 -----------
 
 ZynAddSubFX is a fully featured musical software synthesizer for Linux, MacOS, BSD, and Windows.
 ZynAddSubFX exposes a wide array of synthesis parameters to make it flexible tool for sound design and a fun experience for playing instruments.
-
-image::doc/zyn-fusion-add.png[Zyn-Fusion Add Synth Editor]
 
 Features
 ~~~~~~~~

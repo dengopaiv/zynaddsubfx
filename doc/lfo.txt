@@ -54,8 +54,6 @@ User Interface
 
 In ZynAddSubFX, LFO parameters are shown as:
 
-image:images/uilfo.jpg[]
-
 These parameters are:
 
 * *Freq*: LFO Frequency

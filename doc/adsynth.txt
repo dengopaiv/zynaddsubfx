@@ -19,9 +19,6 @@ elements.
 However a few new features appear here, this includes velocity sensing, punch,
 detune options and relative bandwidth , and resonance.
 
-.AdSynth Global Window
-image::images/ad-global.png[]
-
 
 Velocity sensing is simply an exponential transformation from the note's velocity
 to some parameter change.
@@ -50,9 +47,6 @@ Voices
 
 The voice gives access to a similar setup to the global parameters and then some
 more, such as the modulator, oscillator, and unison features.
-
-.AdSynth Voice Window
-image::images/ad-voice.png[]
 
 Modulation
 ^^^^^^^^^^
@@ -95,9 +89,6 @@ Oscillator
 
 The oscillator is lets you choose the basic waveform, which oscillates while
 the sound is playing and is then further modified.
-
-.Oscillator Window
-image::images/uioscil.png[]
 
 [[adsynth::oscilllator::types_of_waveshaping, Types of Waveshaping]]
 Types of Waveshaping

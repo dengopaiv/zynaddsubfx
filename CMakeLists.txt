@@ -57,12 +57,6 @@ add_subdirectory(doc) # Doxygen only
 install(FILES AUTHORS.txt COPYING README.adoc
 	DESTINATION share/doc/zynaddsubfx
 	)
-install(FILES zynaddsubfx-jack-multi.desktop zynaddsubfx-jack.desktop zynaddsubfx-alsa.desktop zynaddsubfx-oss.desktop
-    DESTINATION share/applications)
-install(FILES zynaddsubfx.svg
-    DESTINATION share/pixmaps)
-install(FILES zynaddsubfx.png
-    DESTINATION share/pixmaps)
 install(DIRECTORY instruments/banks
     DESTINATION share/zynaddsubfx)
 if(DEFINED ZYN_EXAMPLESDIR)

@@ -12,13 +12,10 @@ if(NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Windows"))
     find_package(PkgConfig)
 endif()
 find_package(ZLIB REQUIRED)
-find_package(X11)
 find_package(Threads   REQUIRED)
 find_package(OSS)
 find_package(Alsa)
 find_package(Sndio)
-find_package(FLTK)
-find_package(OpenGL) #for FLTK
 find_package(ECM)
 list(APPEND CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
 if(CompileTests AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
@@ -34,9 +31,6 @@ if(PKG_CONFIG_FOUND AND NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Windows"))
     message("Looking For pkg config modules")
     pkg_check_modules(JACK jack)
     pkg_check_modules(PORTAUDIO portaudio-2.0>=19)
-    set(FLTK_SKIP_OPENGL true)
-    pkg_check_modules(NTK ntk)
-    pkg_check_modules(NTK_IMAGES ntk_images)
 
     pkg_check_modules(FFTW3F REQUIRED fftw3f)
     pkg_check_modules(MXML mxml4)
@@ -81,13 +75,10 @@ CHECK_CXX_SOURCE_COMPILES(
 # NOTE: These cache variables should normally not be changed in this
 # file, but either in in CMakeCache.txt before compile, or by passing
 # parameters directly into cmake using the -D flag.
-if(NTK_FOUND)
-  SET (GuiModule ntk  CACHE STRING "GUI module, either fltk, ntk, zest, or off")
-elseif(FLTK_FOUND)
-  SET (GuiModule fltk CACHE STRING "GUI module, either fltk, ntk, zest, or off")
-else()
-  SET (GuiModule off  CACHE STRING "GUI module, either fltk, ntk, zest, or off")
-endif()
+# The graphical FLTK, NTK and Zyn-Fusion (zest) interfaces were removed:
+# the only user interface is the accessible Win32 one (GuiModule win32,
+# added with the UI itself) or none (off).
+SET (GuiModule off CACHE STRING "GUI module: off")
 SET (CompileTests ON CACHE BOOL "whether tests should be compiled in or not")
 SET (CompileExtensiveTests OFF CACHE BOOL "whether tests that take a long time should be compiled in or not")
 SET (AlsaEnable ${ALSA_FOUND} CACHE BOOL
@@ -115,8 +106,6 @@ if(MSVC)
 else()
     SET (PluginEnable TRUE CACHE BOOL "Enable Plugins")
 endif()
-SET (ZynFusionDir "" CACHE STRING "Developers only: zest binary's dir; useful if fusion is not system-installed.")
-mark_as_advanced(FORCE ZynFusionDir)
 
 # Now, handle the incoming settings and set define flags/variables based
 # on this
@@ -202,19 +191,11 @@ endif()
 
 
 
-if(GuiModule STREQUAL ntk AND NTK_FOUND)
-	set (NtkGui TRUE)
-elseif(GuiModule STREQUAL fltk AND FLTK_FOUND)
-	set (FltkGui TRUE)
-elseif(GuiModule  STREQUAL zest)
-    set (ZestGui TRUE)
-elseif(GuiModule STREQUAL off)
-        add_definitions(-DDISABLE_GUI)
-else  ()
-        set (GuiModule off CACHE STRING "GUI module, either fltk, ntk, zest, or off")
-        add_definitions(-DDISABLE_GUI)
-	message(STATUS "GUI module defaulting to off")
+if(NOT GuiModule STREQUAL off)
+    message(STATUS "GUI module \"${GuiModule}\" is not available, using off")
+    set (GuiModule off CACHE STRING "GUI module: off" FORCE)
 endif()
+add_definitions(-DDISABLE_GUI)
 
 
 #Build Flags
@@ -370,9 +351,6 @@ message(STATUS "Compiling with liblo")
 include_directories(${ZLIB_INCLUDE_DIRS} ${MXML_INCLUDE_DIRS} ${FFTW3F_INCLUDE_DIRS})
 include_directories(${CMAKE_BINARY_DIR}/src) # for zyn-version.h ...
 
-if(NOT ${X11_X11_LIB} STREQUAL "")
-    get_filename_component(X11_LIBRARY_DIRS ${X11_X11_LIB} DIRECTORY)
-endif()
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     add_definitions(-DWIN32)
@@ -452,82 +430,11 @@ if(NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Windows"))
     add_definitions(-fPIC)
 endif()
 
-if(FLTK_FOUND)
-	mark_as_advanced(FORCE FLTK_BASE_LIBRARY)
-	mark_as_advanced(FORCE FLTK_CONFIG_SCRIPT)
-	mark_as_advanced(FORCE FLTK_DIR)
-	mark_as_advanced(FORCE FLTK_FLUID_EXECUTABLE)
-	mark_as_advanced(FORCE FLTK_FORMS_LIBRARY)
-	mark_as_advanced(FORCE FLTK_GL_LIBRARY)
-	mark_as_advanced(FORCE FLTK_IMAGES_LIBRARY)
-	mark_as_advanced(FORCE FLTK_INCLUDE_DIR)
-	mark_as_advanced(FORCE FLTK_MATH_LIBRARY)
-endif(FLTK_FOUND)
 
-if(NTK_FOUND)
-	mark_as_advanced(FORCE NTK_BASE_LIBRARY)
-	mark_as_advanced(FORCE NTK_CONFIG_SCRIPT)
-	mark_as_advanced(FORCE NTK_DIR)
-	mark_as_advanced(FORCE FLTK_FLUID_EXECUTABLE)
-	mark_as_advanced(FORCE NTK_FORMS_LIBRARY)
-	mark_as_advanced(FORCE NTK_GL_LIBRARY)
-	mark_as_advanced(FORCE NTK_IMAGES_LIBRARY)
-	mark_as_advanced(FORCE NTK_INCLUDE_DIR)
-	mark_as_advanced(FORCE NTK_MATH_LIBRARY)
-endif(NTK_FOUND)
-
-if(FltkGui)
-	
-	set(GUI_LIBRARIES zynaddsubfx_gui ${FLTK_LIBRARIES} ${OPENGL_LIBRARIES})
-
-	add_definitions(-DFLTK_GUI)
-	message(STATUS "Will build FLTK gui")
-
-	include_directories(SYSTEM ${FLTK_INCLUDE_DIR})
-	include_directories(	"${CMAKE_CURRENT_SOURCE_DIR}/UI"
-				"${CMAKE_CURRENT_BINARY_DIR}/UI")
-
-	add_subdirectory(UI)
-endif()
-
-if(NtkGui)
-  unset (FLTK_FLUID_EXECUTABLE)
-  find_program(FLTK_FLUID_EXECUTABLE ntk-fluid)
-  if (NOT FLTK_FLUID_EXECUTABLE)
-    message(FATAL_ERROR "ntk-fluid not found. If it's not in PATH, please invoke cmake with -DCMAKE_PROGRAM_PATH=<location/of/ntk-fluid>")
-  endif()
-
-  message(STATUS "NTK Fluid executable: ${FLTK_FLUID_EXECUTABLE}")
-	message(STATUS ${NTK_LDFLAGS} ${NTK_IMAGES_LDFLAGS})
-
-	set(GUI_LIBRARIES zynaddsubfx_gui ${NTK_IMAGES_LIBRARIES} ${NTK_LIBRARIES} ${OPENGL_LIBRARIES})
-
-	if(X11_FOUND AND X11_Xpm_FOUND)
-	     set(GUI_LIBRARIES ${GUI_LIBRARIES} ${X11_LIBRARIES} -lXpm)
-	endif()
-
-	add_definitions(-DNTK_GUI)
-
-	message(STATUS "Will build NTK gui")
-
-	include_directories(BEFORE SYSTEM ${NTK_INCLUDE_DIRS})
-	include_directories(BEFORE	"${CMAKE_CURRENT_SOURCE_DIR}/UI"
-					"${CMAKE_CURRENT_BINARY_DIR}/UI")
-
-	add_subdirectory(UI)
-endif()
-
-if(ZestGui)
-    add_definitions(-DDGL_OPENGL=1)
-    add_definitions(-DHAVE_DGL)
-    add_definitions(-DZEST_GUI)
-endif()
-
-if(NOT FltkGui AND NOT NtkGui)
-    set(NSM_WORKAROUND UI/NSM.C UI/NSM/Client.C)
-    add_library(zynaddsubfx_gui_bridge STATIC UI/ConnectionDummy.cpp ${NSM_WORKAROUND})
-    add_definitions(-DNO_UI=1)
-endif()
+# No user interface: stubs, plus the (non-graphical) NSM session client
+add_library(zynaddsubfx_gui_bridge STATIC UI/ConnectionDummy.cpp
+    UI/NSM.C UI/NSM/Client.C)
+add_definitions(-DNO_UI=1)
 
 ########### General section ##############
 # Following this should be only general compilation code, and no mention
@@ -538,7 +445,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zyn-version.h.in
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zyn-config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/zyn-config.h)
 
-link_directories(${AUDIO_LIBRARY_DIRS} ${ZLIB_LIBRARY_DIRS} ${FFTW3F_LIBRARY_DIRS} ${MXML_LIBRARY_DIRS} ${FLTK_LIBRARY_DIRS} ${NTK_LIBRARY_DIRS} ${X11_LIBRARY_DIRS})
+link_directories(${AUDIO_LIBRARY_DIRS} ${ZLIB_LIBRARY_DIRS} ${FFTW3F_LIBRARY_DIRS} ${MXML_LIBRARY_DIRS})
 
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -688,9 +595,6 @@ endif()
 install(TARGETS zynaddsubfx
 	RUNTIME DESTINATION bin
 	)
-if(NtkGui)
-    install(DIRECTORY ../pixmaps DESTINATION share/zynaddsubfx)
-endif(NtkGui)
 
 include(CTest)
 
@@ -721,10 +625,6 @@ package_status(ZLIB_FOUND       "zlib     " "found"   ${Red})
 package_status(MXML_FOUND       "mxml     " "found"   ${Red})
 package_status(FFTW3F_FOUND     "fftw3f   " "found"   ${Red})
 package_status(LIBLO_FOUND      "liblo    " "found"   ${Red})
-package_status(X11_FOUND        "x11      " "found"   ${Yellow})
-package_status(X11_Xpm_FOUND    "xpm      " "found"   ${Yellow})
-package_status(FLTK_FOUND       "fltk     " "found"   ${Yellow})
-package_status(NTK_FOUND        "ntk      " "found"   ${Yellow})
 package_status(OSS_FOUND        "OSS      " "found"   ${Yellow})
 package_status(ALSA_FOUND       "ALSA     " "found"   ${Yellow})
 package_status(JACK_FOUND       "JACK     " "found"   ${Yellow})
@@ -741,7 +641,7 @@ package_status(OssEnable        "OSS      " "enabled" ${Yellow})
 package_status(PaEnable         "PA       " "enabled" ${Yellow})
 package_status(SndioEnable      "SNDIO    " "enabled" ${Yellow})
 package_status(HAVE_BG_SYNTH_THREAD "Background synthesizer thread" "enabled" ${Yellow})
-#TODO GUI MODULE
+message(STATUS "GUI module: ${GuiModule}")
 package_status(HAVE_ASYNC       "c++ async" "usable"  ${Yellow})
 
 message(STATUS "Link libraries: ${ZLIB_LIBRARY} ${FFTW3F_LIBRARY} ${MXML_LIBRARIES} ${AUDIO_LIBRARIES} ${OS_LIBRARIES}")

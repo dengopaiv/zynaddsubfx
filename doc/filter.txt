@@ -79,8 +79,6 @@ the voice being killed while the filter is still making nice sounds.
 User Interface
 ~~~~~~~~~~~~~~
 
-image:images/uifilter.png[]
-
 * *C.freq*: Cutoff frequency
 * *Q*: Level of resonance for the filter
 * *V.SnsA.*: Velocity sensing amount for filter cutoff

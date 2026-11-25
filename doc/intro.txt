@@ -28,9 +28,6 @@ provides links into the parameters of the patches.
 ZynAddSubFX is a powerful tool with a number of base patches, but its true power
 lies in the ability to make your own patches.
 
-.Main Window
-image::./images/uimain.png[]
-
 For basic usage, you will want to use the button to the right of the enabled
 label.
 This button will allow for one to select the desired instrument from the banks

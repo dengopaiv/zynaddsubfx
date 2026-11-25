@@ -82,8 +82,6 @@ This means that if this option is turned on, the release will go to the final va
 
 The parameters for Amplitude Envelopes for ZynAddSubFX are:
 
-image:images/uienvelope3.jpg[Alt Text]
-
 * *A.dt*: Attack duration
 * *D.dt*: Decay duration
 * *S.Val*: Sustain value
@@ -94,8 +92,6 @@ logarithmic
 
 For Frequency Envelopes the interface has the following parameters:
 
-image:images/uienvelope2.jpg[Alt Text]
-
 * *A.val*: Attack value
 * *A.dt*: Attack duration
 * *R.dt*: Release time
@@ -103,8 +99,6 @@ image:images/uienvelope2.jpg[Alt Text]
 
 
 Filter Envelopes has the parameters:
-
-image:images/uienvelope1.jpg[Alt Text]
 
 * *A.val*: Attack value
 * *A.dt*: Attack duration
@@ -114,8 +108,6 @@ image:images/uienvelope1.jpg[Alt Text]
 * *R.val*: Release value
 
 The Freemode envelopes has a separate window to set the parameters and controls:
-
-image:images/uienvelope0.jpg[]
 
 *  *Control points*: You can move the points using the mouse.
 In the right on the windows, it is shown the total duration of the envelope.

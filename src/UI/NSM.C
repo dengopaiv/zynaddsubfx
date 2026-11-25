@@ -22,9 +22,6 @@
 
 #include "../Nio/Nio.h"
 
-#if defined(FLTK_UI) || defined(NTK_UI)
-#include <FL/Fl.H>
-#endif
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>
@@ -32,10 +29,6 @@
 #include <stdlib.h>
 
 extern int Pexitprogram;
-#if defined(FLTK_UI) || defined(NTK_UI)
-#include "MasterUI.h"
-extern MasterUI *ui;
-#endif
 
 extern NSM_Client *nsm;
 extern char       *instance_name;
@@ -113,65 +106,8 @@ NSM_Client::command_open(const char *name,
     return r;
 }
 
-#if defined(FLTK_UI) || defined(NTK_UI)
-static void save_callback(Fl_Widget *, void *v)
-{
-    MasterUI *ui = static_cast<MasterUI*>(v);
-    ui->do_save_master();
-}
-#endif
-
 void
 NSM_Client::command_active(bool active)
 {
-#if defined(FLTK_UI) || defined(NTK_UI)
-    if(active) {
-        Fl_Menu_Item *m;
-        //TODO see if there is a cleaner way of doing this without voiding
-        //constness
-        if((m=const_cast<Fl_Menu_Item *>(ui->mastermenu->find_item(
-                                       "&File/&Open Parameters..."))))
-            m->label("&Import Parameters...");
-        if((m=const_cast<Fl_Menu_Item *>(ui->simplemastermenu->find_item(
-                                       "&File/&Open Parameters..."))))
-            m->label("&Import Parameters...");
-
-        //TODO get this menu entry inserted at the right point
-        if((m=const_cast<Fl_Menu_Item *>(ui->mastermenu->find_item("&File/&Export Parameters..."))))
-            m->show();
-        else
-            ui->mastermenu->add("&File/&Export Parameters...",0,save_callback,ui);
-
-        if((m=const_cast<Fl_Menu_Item *>(ui->simplemastermenu->find_item("&File/&Export Parameters..."))))
-            m->show();
-        else
-            ui->simplemastermenu->add("&File/&Export Parameters...",0,save_callback,ui);
-
-        ui->sm_indicator1->value(1);
-        ui->sm_indicator2->value(1);
-        ui->sm_indicator1->tooltip(session_manager_name());
-        ui->sm_indicator2->tooltip(session_manager_name());
-    }
-    else {
-        Fl_Menu_Item *m;
-        if((m=const_cast<Fl_Menu_Item *>(ui->mastermenu->find_item(
-                                       "&File/&Import Parameters..."))))
-            m->label("&Open Parameters...");
-        if((m=const_cast<Fl_Menu_Item *>(ui->simplemastermenu->find_item(
-                                       "&File/&Open Parameters..."))))
-            m->label("&Open Parameters...");
-
-        if((m=const_cast<Fl_Menu_Item *>(ui->mastermenu->find_item("&File/&Export Parameters..."))))
-            m->hide();
-        if((m=const_cast<Fl_Menu_Item *>(ui->simplemastermenu->find_item("&File/&Export Parameters..."))))
-            m->hide();
-
-        ui->sm_indicator1->value(0);
-        ui->sm_indicator2->value(0);
-        ui->sm_indicator1->tooltip(NULL);
-        ui->sm_indicator2->tooltip(NULL);
-    }
-#else
     (void)active;
-#endif
 }
