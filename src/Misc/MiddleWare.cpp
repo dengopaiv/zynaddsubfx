@@ -10,6 +10,10 @@
   of the License, or (at your option) any later version.
 */
 #include "MiddleWare.h"
+#ifdef WIN32
+#include <windows.h> //checkAutoSave: is a process still running
+#include <cwctype>
+#endif
 
 #include <cstring>
 #include <cstdio>
@@ -2458,14 +2462,38 @@ int MiddleWare::checkAutoSave(void) const
         const std::string filename = entry.path().filename().string();
         const char *prefix = "zynaddsubfx-";
 
-        //check for mandatory prefix
-        if(entry.is_directory(ec) || filename.rfind(prefix, 0) != 0)
+        //check for mandatory prefix and suffix (other files, such as the
+        //bank cache, may share the folder and the prefix)
+        const std::string suffix = "-autosave.xmz";
+        if(entry.is_directory(ec) || filename.rfind(prefix, 0) != 0 ||
+           filename.size() < suffix.size() ||
+           filename.compare(filename.size() - suffix.size(), suffix.size(),
+                            suffix) != 0)
             continue;
 
         int id = atoi(filename.c_str()+strlen(prefix));
+        if(id <= 0)
+            continue;
 
         bool in_use = false;
 
+#ifdef WIN32
+        //is the process that writes this save still a running zynaddsubfx?
+        if(HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                                  (DWORD)id)) {
+            wchar_t image[MAX_PATH * 4];
+            DWORD len = MAX_PATH * 4;
+            if(QueryFullProcessImageNameW(h, 0, image, &len)) {
+                std::wstring name(image, len);
+                for(auto &c : name)
+                    c = (wchar_t)towlower(c);
+                in_use = name.size() >= 15 &&
+                         name.compare(name.size() - 15, 15,
+                                      L"zynaddsubfx.exe") == 0;
+            }
+            CloseHandle(h);
+        }
+#else
         std::string proc_file = "/proc/" + to_s(id) + "/comm";
         std::ifstream ifs(proc_file);
         if(ifs.good()) {
@@ -2473,6 +2501,7 @@ int MiddleWare::checkAutoSave(void) const
             ifs >> comm_name;
             in_use = (comm_name == "zynaddsubfx");
         }
+#endif
 
         if(!in_use) {
             reload_save = id;

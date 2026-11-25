@@ -270,7 +270,13 @@ int main(int argc, char *argv[])
     };
     exit_with_t exit_with = exit_with_t::dont_exit;
     int preferred_port = -1;
+#ifdef WIN32_UI
+    //the accessible edition saves automatically every minute (-A 0: never),
+    //so a crash loses little
+    int auto_save_interval = 60;
+#else
     int auto_save_interval = 0;
+#endif
     int wmidi = -1;
 
     string loadfile, loadinstrument, execAfterInit, loadmidilearn;

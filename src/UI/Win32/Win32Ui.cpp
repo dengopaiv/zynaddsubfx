@@ -164,6 +164,8 @@ Slot gSlots[kBankSlots];
 int  gBankPos      = -1;
 bool gSlotsChanged = false;
 int  gPreviewNote  = -1, gPreviewChan = 0;
+//what Space last loaded, so holding it again does not load it again
+int  gPreviewSlot = -1, gPreviewPart = -1, gPreviewBank = -1;
 
 //Playing from the computer keyboard
 HWND gPlayWnd     = nullptr;
@@ -992,6 +994,9 @@ void loadSelectedInstrument()
         return;
     }
     const int part = bankPart();
+    gPreviewSlot = slot;
+    gPreviewPart = part;
+    gPreviewBank = gBankPos;
     send("/load_xiz", "is", part, gSlots[slot].file.c_str());
     send(("/part" + std::to_string(part) + "/Penabled").c_str(), "T");
     say(L"Loading " + widen(gSlots[slot].name) + L" into part " +
@@ -1074,7 +1079,18 @@ bool bankKey(const MSG &m)
         return false;
     if(m.message == WM_KEYDOWN) {
         if(!(m.lParam & (1 << 30)) && gPreviewNote < 0) {
-            gPreviewChan = bankPart();
+            //the selected instrument, loaded into the part first when it
+            //is not there yet; MiddleWare loads it before the note arrives
+            const int slot = selectedSlot();
+            const int part = bankPart();
+            if(slot >= 0 && !gSlots[slot].file.empty() &&
+               (gPreviewSlot != slot || gPreviewPart != part ||
+                gPreviewBank != gBankPos))
+                loadSelectedInstrument();
+            gPreviewSlot = slot;
+            gPreviewPart = part;
+            gPreviewBank = gBankPos;
+            gPreviewChan = part % 16;
             gPreviewNote = 60;
             send("/noteOn", "iii", gPreviewChan, gPreviewNote, 100);
         }
@@ -1093,19 +1109,30 @@ bool bankKey(const MSG &m)
 
 //! Semitone above the octave's C for a key, or -1. Lower row from Z,
 //! upper row from Q, as on a piano keyboard (the black keys a row higher).
-int keyOffset(WPARAM vk)
+//! Keys are told apart by their position (scan code), not by the letter the
+//! layout prints on them, so the rows are the same on every layout. The
+//! names below are those of a US keyboard.
+int keyOffset(LPARAM lp)
 {
-    static const std::pair<WPARAM, int> keys[] = {
-        {'Z', 0}, {'S', 1}, {'X', 2}, {'D', 3}, {'C', 4}, {'V', 5},
-        {'G', 6}, {'B', 7}, {'H', 8}, {'N', 9}, {'J', 10}, {'M', 11},
-        {VK_OEM_COMMA, 12}, {'L', 13}, {VK_OEM_PERIOD, 14}, {VK_OEM_1, 15},
-        {VK_OEM_2, 16},
-        {'Q', 12}, {'2', 13}, {'W', 14}, {'3', 15}, {'E', 16}, {'R', 17},
-        {'5', 18}, {'T', 19}, {'6', 20}, {'Y', 21}, {'7', 22}, {'U', 23},
-        {'I', 24}, {'9', 25}, {'O', 26}, {'0', 27}, {'P', 28},
+    if(lp & (1 << 24))
+        return -1; //an extended key (the numeric keypad's, arrows ...)
+    static const std::pair<int, int> keys[] = {
+        {0x2C, 0},  /* Z */ {0x1F, 1},  /* S */ {0x2D, 2},  /* X */
+        {0x20, 3},  /* D */ {0x2E, 4},  /* C */ {0x2F, 5},  /* V */
+        {0x22, 6},  /* G */ {0x30, 7},  /* B */ {0x23, 8},  /* H */
+        {0x31, 9},  /* N */ {0x24, 10}, /* J */ {0x32, 11}, /* M */
+        {0x33, 12}, /* , */ {0x26, 13}, /* L */ {0x34, 14}, /* . */
+        {0x27, 15}, /* ; */ {0x35, 16}, /* / */
+        {0x10, 12}, /* Q */ {0x03, 13}, /* 2 */ {0x11, 14}, /* W */
+        {0x04, 15}, /* 3 */ {0x12, 16}, /* E */ {0x13, 17}, /* R */
+        {0x06, 18}, /* 5 */ {0x14, 19}, /* T */ {0x07, 20}, /* 6 */
+        {0x15, 21}, /* Y */ {0x08, 22}, /* 7 */ {0x16, 23}, /* U */
+        {0x17, 24}, /* I */ {0x0A, 25}, /* 9 */ {0x18, 26}, /* O */
+        {0x0B, 27}, /* 0 */ {0x19, 28}, /* P */
     };
+    const int scan = (int)((lp >> 16) & 0xFF);
     for(auto &k : keys)
-        if(k.first == vk)
+        if(k.first == scan)
             return k.second;
     return -1;
 }
@@ -1148,19 +1175,20 @@ LRESULT CALLBACK playProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
                 say(L"Velocity " + std::to_wstring(gPlayVelocity));
                 return 0;
             }
-            const int off = keyOffset(wp);
-            if(off < 0 || (lp & (1 << 30)) || gHeld.count(wp))
+            const int off = keyOffset(lp);
+            const WPARAM scan = (lp >> 16) & 0xFF;
+            if(off < 0 || (lp & (1 << 30)) || gHeld.count(scan))
                 return 0;
             const int note = 12 * (gPlayOctave + 1) + off;
             if(note > 127)
                 return 0;
             const int chan = currentPart() % 16;
-            gHeld[wp] = {chan, note};
+            gHeld[scan] = {chan, note};
             send("/noteOn", "iii", chan, note, gPlayVelocity);
             return 0;
         }
         case WM_KEYUP: {
-            auto it = gHeld.find(wp);
+            auto it = gHeld.find((lp >> 16) & 0xFF);
             if(it != gHeld.end()) {
                 send("/noteOff", "ii", it->second.first, it->second.second);
                 gHeld.erase(it);
@@ -2390,6 +2418,14 @@ void tickUi(ui_handle_t)
         }
         if(bankKey(m))
             continue;
+        //the tree's numeric-keypad asterisk opens every group below: on
+        //Master or a part that is millions of groups
+        if(m.message == WM_KEYDOWN && m.hwnd == gTree &&
+           m.wParam == VK_MULTIPLY) {
+            say(L"Opening every group at once is not available: there are "
+                L"too many. Open them one at a time with Right Arrow.");
+            continue;
+        }
         if(gMain && gAccel && TranslateAcceleratorW(gMain, gAccel, &m))
             continue;
         if(handleKey(m))
