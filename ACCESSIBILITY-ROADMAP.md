@@ -7,13 +7,14 @@ standard Windows controls.
 
 ## 0. Status (25 November 2026, evening)
 
-Phases 1 to 9 are done on the local branch `accessible` of
-`C:\GIT\music\zynaddsubfx`, which starts from upstream `master` at
-`c379439e`, the latest version. **Nothing has been pushed:** the
-`dengopaiv/zynaddsubfx` fork on GitHub is unchanged until you say so.
-Decisions D1 to D5 were taken as recommended below (Win32, the existing fork
-with an `accessible` branch, MSVC, standalone first, "ZynAddSubFX
-Accessible Edition"). Each can still be changed.
+Phases 1 to 9 are done on the branch `accessible` of
+`dengopaiv/zynaddsubfx`, which is now that fork's default branch. It starts
+from upstream `master` at `c379439e`, the latest version, and the fork's
+`master` was fast-forwarded to it. Decisions D1 to D5 were taken as
+recommended below and confirmed: Win32, the existing fork with an
+`accessible` branch, MSVC, standalone first, and the name "ZynAddSubFX
+Accessible Edition". Also confirmed: no upstream pull requests for now, and
+no separate Linux testing.
 
 What exists now:
 
@@ -35,12 +36,16 @@ What exists now:
   * a bank browser with preview, playing from the computer keyboard, and
     file, undo and audio/MIDI menus.
 * **Checked through UI Automation** (`tools/uia_check.py --sweep`, run on a
-  hidden desktop with `tools/hidden_desktop.py`): every group under Part 1,
-  the effects, Tuning, Controllers and Settings, for unnamed controls and
-  sliders without values.
+  hidden desktop with `tools/hidden_desktop.py`). The sweep covered 64
+  groups (Master, all of Part 1 with Kit item 1 and Voice 1, the effects,
+  Tuning, Controllers and Settings) and 955 controls. Not one control was
+  unnamed, and not one slider was without a value. Keys typed into sliders,
+  the harmonic chooser and the bank browser were checked to reach the
+  engine.
 * **Release zip** (`tools/package.py`), including the banks, the manual
-  (`doc/accessible/MANUAL.txt`) and the Visual C++ runtime. A GitHub
-  Actions workflow builds, tests and packages on `windows-latest`.
+  (`doc/accessible/MANUAL.txt`) and the Visual C++ runtime. The GitHub
+  Actions workflow "Windows (accessible edition)" builds, tests and packages
+  on `windows-latest`. Its first run passed, and the zip is its artifact.
 
 Still open:
 
@@ -49,11 +54,12 @@ Still open:
 * **Value formatting (Phase 6)** covers units from the engine plus panning,
   detune, keys and times. Many 0 to 127 parameters still read as plain
   numbers where the engine has no unit for them.
-* **Upstream pull requests** for the general fixes in section 3.2.
-* **The Linux build** of this branch has not been tried.
 * **The plugin (Phase 10)**: not started.
-* **Pushing** the branch to `dengopaiv/zynaddsubfx`, and the CI's first
-  run.
+* **Upstream's own "Build CI"** also runs on the fork. Its first run found
+  missing plugin stubs. With those fixed (`9e6fc63`), every job passes,
+  builds and tests included: Ubuntu gcc, Ubuntu clang with lld, and macOS
+  clang. So the core still builds on Linux and macOS, even though only the
+  Windows interface is the goal.
 
 ## 1. Verdict: is it doable?
 
