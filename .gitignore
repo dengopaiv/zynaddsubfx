@@ -21,3 +21,4 @@ doc/zynaddsubfx.1
 doc/zynaddsubfx.chunked
 .DS_Store
 __pycache__/
+dist/
