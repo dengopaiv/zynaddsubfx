@@ -177,6 +177,7 @@ enum {
     IDM_EXIT, IDM_UNDO, IDM_REDO, IDM_SETTINGS, IDM_HELP_KEYS, IDM_ABOUT,
     IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY, IDM_PREV_GROUP,
     IDM_NEXT_GROUP, IDM_FIND, IDM_NEXT_SECTION, IDM_PREV_SECTION,
+    IDM_OPEN_SCL, IDM_OPEN_KBM, IDM_OPEN_XSZ, IDM_SAVE_XSZ,
 };
 
 int px(int v) { return MulDiv(v, (int)gDpi, 96); }
@@ -570,7 +571,12 @@ void buildPane(const Node &n, const std::wstring &title)
             Param vp = p;
             vp.path  = p.path + "0";
             vp.label = p.label + L", " + p.indexName + L" 1";
-            Ctl *value = addControl(vp, K_SLIDER, id++);
+            //each element is a slider, or a list or check box when the
+            //elements have named choices or are on/off
+            const Kind vk = !vp.options.empty() ? K_COMBO
+                            : vp.type == 'T'    ? K_CHECK
+                                                : K_SLIDER;
+            Ctl *value = addControl(vp, vk, id++);
             index->target = value;
             value->base   = p.path;
             index->known  = true;
@@ -690,7 +696,10 @@ void chooseElement(Ctl &index, int i)
                               L" " + std::to_wstring(i + 1);
     t->p.label = name;
     access::setName(t->ctl, name);
-    SetWindowTextW(t->label, (name + L":").c_str());
+    if(t->label)
+        SetWindowTextW(t->label, (name + L":").c_str());
+    else //a check box is its own label
+        SetWindowTextW(t->ctl, name.c_str());
     request(t->p.path);
 }
 
@@ -1250,6 +1259,15 @@ void updatePartItem(int part)
     SendMessageW(gTree, TVM_SETITEMW, 0, (LPARAM)&it);
 }
 
+//! Ask for the pane's values again in a moment: after a command whose
+//! effect reaches the engine later (a scale loaded into the tuning)
+constexpr UINT_PTR kRefreshTimer = 0x5A2;
+void refreshPaneSoon()
+{
+    if(gMain)
+        SetTimer(gMain, kRefreshTimer, 400, nullptr);
+}
+
 void requestPartNames()
 {
     for(int i = 0; i < kParts; ++i) {
@@ -1718,6 +1736,40 @@ void command(int id)
                     L" as " + fileName(f));
             }
             break;
+        case IDM_OPEN_SCL:
+            if(fileDialog(false, L"Scala scales (*.scl)\0*.scl\0All files\0*.*\0",
+                          L"scl", f)) {
+                send("/load_scl", "s", f.c_str());
+                refreshPaneSoon();
+                say(L"Opened the scale " + fileName(f) +
+                    L". Switch Tuning on to use it");
+            }
+            break;
+        case IDM_OPEN_KBM:
+            if(fileDialog(false,
+                          L"Scala keyboard mappings (*.kbm)\0*.kbm\0All files\0*.*\0",
+                          L"kbm", f)) {
+                send("/load_kbm", "s", f.c_str());
+                refreshPaneSoon();
+                say(L"Opened the keyboard mapping " + fileName(f));
+            }
+            break;
+        case IDM_OPEN_XSZ:
+            if(fileDialog(false,
+                          L"ZynAddSubFX scales (*.xsz)\0*.xsz\0All files\0*.*\0",
+                          L"xsz", f)) {
+                send("/load_xsz", "s", f.c_str());
+                refreshPaneSoon();
+                say(L"Opened the scale " + fileName(f));
+            }
+            break;
+        case IDM_SAVE_XSZ:
+            if(fileDialog(true, L"ZynAddSubFX scales (*.xsz)\0*.xsz\0", L"xsz",
+                          f)) {
+                send("/save_xsz", "s", f.c_str());
+                say(L"Saved the scale as " + fileName(f));
+            }
+            break;
         case IDM_EXIT:
             DestroyWindow(gMain);
             break;
@@ -1800,6 +1852,12 @@ HMENU makeMenu()
                 L"Open &instrument into current part...\tCtrl+I");
     AppendMenuW(file, MF_STRING, IDM_SAVE_INSTR,
                 L"Save current part as instr&ument...\tCtrl+Shift+S");
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, IDM_OPEN_SCL, L"Open Scala s&cale (.scl)...");
+    AppendMenuW(file, MF_STRING, IDM_OPEN_KBM,
+                L"Open Scala &keyboard mapping (.kbm)...");
+    AppendMenuW(file, MF_STRING, IDM_OPEN_XSZ, L"Open sca&le (.xsz)...");
+    AppendMenuW(file, MF_STRING, IDM_SAVE_XSZ, L"Save scale as (.xs&z)...");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, IDM_EXIT, L"E&xit\tAlt+F4");
     AppendMenuW(edit, MF_STRING, IDM_UNDO, L"&Undo\tCtrl+Z");
@@ -1894,7 +1952,9 @@ HTREEITEM insertNode(HTREEITEM parent, const Node &n)
     gItemByPath[nodeKey(n)] = item;
     int part = -1;
     char rest[8] = "";
-    if(sscanf(n.path.c_str(), "/part%d%7s", &part, rest) == 2 &&
+    //the part's own item, not one of its sections (they share its path)
+    if(n.section.empty() &&
+       sscanf(n.path.c_str(), "/part%d%7s", &part, rest) == 2 &&
        !strcmp(rest, "/") && part >= 0 && part < kParts)
         gPartItem[part] = item;
     if(isEffectNode(n.path) && !gEffType.count(n.path))
@@ -2113,6 +2173,14 @@ LRESULT CALLBACK mainProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER:
             if(access::onTimer(wp))
                 return 0;
+            if(wp == kRefreshTimer) { //refreshPaneSoon
+                KillTimer(h, kRefreshTimer);
+                for(auto &c : gCtls)
+                    if(c->kind != K_BUTTON && c->kind != K_INDEX &&
+                       c->kind != K_HEADING)
+                        request(c->p.path);
+                return 0;
+            }
             break;
         case WM_DPICHANGED: {
             gDpi = HIWORD(wp);

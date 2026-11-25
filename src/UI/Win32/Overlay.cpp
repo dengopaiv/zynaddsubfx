@@ -117,6 +117,9 @@ std::wstring paramLabel(const std::string &, const std::string &base,
         {"Penvdt",    L"Point time"},
         {"Prespoints", L"Resonance point"},
         {"Pmapping",  L"Mapped scale degree"},
+        {"Pinsparts", L"Where the insertion effect works"},
+        {"Pefxroute", L"Part effect output"},
+        {"Pefxbypass", L"Part effect bypassed"},
     };
     auto it = names.find(base);
     if(it != names.end())
@@ -189,6 +192,16 @@ std::wstring arrayIndexName(const std::string &base)
         return L"Point";
     if(base == "Pmapping")
         return L"Key";
+    if(base == "Pinsparts")
+        return L"Insertion effect";
+    if(base == "Pefxroute" || base == "Pefxbypass")
+        return L"Part effect";
+    if(base == "Phmag" || base == "Phrelbw")
+        return L"Harmonic";
+    if(base == "vowel_seq")
+        return L"Step";
+    if(base == "part")
+        return L"Part";
     return L"Item";
 }
 
