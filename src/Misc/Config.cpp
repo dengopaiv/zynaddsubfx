@@ -253,6 +253,24 @@ void Config::init()
 #endif
     }
 
+#ifdef WIN32
+    //the banks shipped next to the program, wherever it is started from,
+    //also when an older configuration file lists other folders
+    {
+        const std::string shipped = os_exe_dir() + "/banks";
+        int free = -1;
+        bool listed = false;
+        for(int i = 0; i < MAX_BANK_ROOT_DIRS; ++i) {
+            if(cfg.bankRootDirList[i] == shipped)
+                listed = true;
+            else if(free < 0 && cfg.bankRootDirList[i].empty())
+                free = i;
+        }
+        if(!listed && free >= 0)
+            cfg.bankRootDirList[free] = shipped;
+    }
+#endif
+
     if(cfg.presetsDirList[0].empty()) {
         //presets
         cfg.presetsDirList[0] = "./";

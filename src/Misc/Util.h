@@ -74,6 +74,9 @@ std::string os_pid_as_padded_string();
 //! the process id
 int os_getpid();
 
+//! the directory of the running program (Windows; "." elsewhere)
+std::string os_exe_dir();
+
 //! the user's home directory: $HOME, else %USERPROFILE% (Windows), else "."
 std::string os_home_dir();
 

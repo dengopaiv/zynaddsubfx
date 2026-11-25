@@ -39,6 +39,8 @@
 #include <objbase.h>
 
 #include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <cstdarg>
 #include <deque>
 #include <map>
@@ -82,11 +84,32 @@ std::map<std::string, Ctl *>      gByPath;
 std::map<HWND, Ctl *>             gByHwnd;
 
 constexpr int kFirstCtlId = 1000;
+constexpr int kParts      = 16;
+constexpr int kBankSlots  = 160;
+
+//The parts' tree items, named after their instruments
+HTREEITEM    gPartItem[kParts]    = {};
+std::wstring gPartName[kParts];
+bool         gPartEnabled[kParts] = {true};
+
+//Bank browser (a dialog that stays open)
+HWND gBankDlg = nullptr;
+struct Slot { std::string name, file; };
+std::vector<std::pair<std::string, std::string>> gBanks; //name, folder
+Slot gSlots[kBankSlots];
+int  gBankPos      = -1;
+bool gSlotsChanged = false;
+int  gPreviewNote  = -1, gPreviewChan = 0;
+
+//Playing from the computer keyboard
+HWND gPlayWnd     = nullptr;
+int  gPlayOctave  = 4, gPlayVelocity = 100;
+std::map<WPARAM, std::pair<int, int>> gHeld; //key -> channel, note
 
 enum {
     IDM_NEW = 40001, IDM_OPEN, IDM_SAVE, IDM_OPEN_INSTR, IDM_SAVE_INSTR,
     IDM_EXIT, IDM_UNDO, IDM_REDO, IDM_SETTINGS, IDM_HELP_KEYS, IDM_ABOUT,
-    IDM_SWITCH_PANE, IDM_FOCUS_TREE,
+    IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY,
 };
 
 int px(int v) { return MulDiv(v, (int)gDpi, 96); }
@@ -631,6 +654,364 @@ std::wstring fileName(const std::string &path)
     return s == std::wstring::npos ? w : w.substr(s + 1);
 }
 
+// ------------------------------------------------------- bank browser
+
+int bankPart()
+{
+    if(!gBankDlg)
+        return currentPart();
+    int i = (int)SendDlgItemMessageW(gBankDlg, IDC_BANK_PART, CB_GETCURSEL, 0, 0);
+    return i < 0 ? 0 : i;
+}
+
+void requestSlots()
+{
+    for(auto &s : gSlots)
+        s = Slot();
+    gSlotsChanged = true;
+    for(int i = 0; i < kBankSlots; ++i)
+        request("/bank/slot" + std::to_string(i));
+}
+
+//! The instrument list again, after slots arrived (once per tick)
+void refillInstruments()
+{
+    if(!gBankDlg || !gSlotsChanged)
+        return;
+    gSlotsChanged = false;
+    HWND l = GetDlgItem(gBankDlg, IDC_INSTR_LIST);
+    int keep = -1;
+    int sel = (int)SendMessageW(l, LB_GETCURSEL, 0, 0);
+    if(sel >= 0)
+        keep = (int)SendMessageW(l, LB_GETITEMDATA, sel, 0);
+    SendMessageW(l, WM_SETREDRAW, FALSE, 0);
+    SendMessageW(l, LB_RESETCONTENT, 0, 0);
+    int newSel = -1, count = 0;
+    for(int i = 0; i < kBankSlots; ++i) {
+        if(gSlots[i].name.empty())
+            continue;
+        std::wstring t = widen(gSlots[i].name) + L" (slot " +
+                         std::to_wstring(i + 1) + L")";
+        int at = (int)SendMessageW(l, LB_ADDSTRING, 0, (LPARAM)t.c_str());
+        SendMessageW(l, LB_SETITEMDATA, at, i);
+        if(i == keep)
+            newSel = at;
+        ++count;
+    }
+    SendMessageW(l, LB_SETCURSEL, newSel >= 0 ? newSel : 0, 0);
+    SendMessageW(l, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(l, nullptr, TRUE);
+}
+
+int selectedSlot()
+{
+    HWND l = GetDlgItem(gBankDlg, IDC_INSTR_LIST);
+    int sel = (int)SendMessageW(l, LB_GETCURSEL, 0, 0);
+    return sel < 0 ? -1 : (int)SendMessageW(l, LB_GETITEMDATA, sel, 0);
+}
+
+void loadSelectedInstrument()
+{
+    const int slot = selectedSlot();
+    if(slot < 0 || gSlots[slot].file.empty()) {
+        say(L"No instrument selected");
+        return;
+    }
+    const int part = bankPart();
+    send("/load_xiz", "is", part, gSlots[slot].file.c_str());
+    send(("/part" + std::to_string(part) + "/Penabled").c_str(), "T");
+    say(L"Loading " + widen(gSlots[slot].name) + L" into part " +
+        std::to_wstring(part + 1));
+}
+
+INT_PTR CALLBACK bankProc(HWND dlg, UINT msg, WPARAM wp, LPARAM)
+{
+    switch(msg) {
+        case WM_INITDIALOG: {
+            //MiddleWare answers its own ports at once, inside the request:
+            //the replies below arrive before CreateDialogParam returns
+            gBankDlg = dlg;
+            HWND p = GetDlgItem(dlg, IDC_BANK_PART);
+            for(int i = 0; i < kParts; ++i)
+                SendMessageW(p, CB_ADDSTRING, 0,
+                             (LPARAM)(L"Part " + std::to_wstring(i + 1)).c_str());
+            SendMessageW(p, CB_SETCURSEL, currentPart(), 0);
+            request("/bank/bank_list");
+            request("/bank/bank_select");
+            return TRUE;
+        }
+        case WM_COMMAND:
+            switch(LOWORD(wp)) {
+                case IDC_BANK_LIST:
+                    if(HIWORD(wp) == LBN_SELCHANGE) {
+                        int sel = (int)SendDlgItemMessageW(dlg, IDC_BANK_LIST,
+                                                           LB_GETCURSEL, 0, 0);
+                        int i = sel < 0 ? -1 :
+                            (int)SendDlgItemMessageW(dlg, IDC_BANK_LIST,
+                                                     LB_GETITEMDATA, sel, 0);
+                        if(i >= 0) {
+                            gBankPos = i;
+                            send("/bank/bank_select", "i", i);
+                            requestSlots();
+                        }
+                    }
+                    return TRUE;
+                case IDC_INSTR_LIST:
+                    if(HIWORD(wp) == LBN_DBLCLK)
+                        loadSelectedInstrument();
+                    return TRUE;
+                case IDOK:
+                    loadSelectedInstrument();
+                    return TRUE;
+                case IDCANCEL:
+                    DestroyWindow(dlg);
+                    return TRUE;
+            }
+            break;
+        case WM_DESTROY:
+            if(gPreviewNote >= 0) {
+                send("/noteOff", "ii", gPreviewChan, gPreviewNote);
+                gPreviewNote = -1;
+            }
+            gBankDlg = nullptr;
+            if(gMain)
+                SetFocus(gTree);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+void openBanks()
+{
+    if(gBankDlg) {
+        SetFocus(GetDlgItem(gBankDlg, IDC_INSTR_LIST));
+        return;
+    }
+    gBankDlg = CreateDialogParamW(gInst, MAKEINTRESOURCEW(IDD_BANK), gMain,
+                                  bankProc, 0);
+    ShowWindow(gBankDlg, SW_SHOW);
+}
+
+//! Space in the instrument list plays a note while it is held
+bool bankKey(const MSG &m)
+{
+    if(!gBankDlg || GetFocus() != GetDlgItem(gBankDlg, IDC_INSTR_LIST) ||
+       m.wParam != VK_SPACE)
+        return false;
+    if(m.message == WM_KEYDOWN) {
+        if(!(m.lParam & (1 << 30)) && gPreviewNote < 0) {
+            gPreviewChan = bankPart();
+            gPreviewNote = 60;
+            send("/noteOn", "iii", gPreviewChan, gPreviewNote, 100);
+        }
+        return true;
+    }
+    if(m.message == WM_KEYUP) {
+        if(gPreviewNote >= 0)
+            send("/noteOff", "ii", gPreviewChan, gPreviewNote);
+        gPreviewNote = -1;
+        return true;
+    }
+    return m.message == WM_CHAR;
+}
+
+// ------------------------------------------- playing from the keyboard
+
+//! Semitone above the octave's C for a key, or -1. Lower row from Z,
+//! upper row from Q, as on a piano keyboard (the black keys a row higher).
+int keyOffset(WPARAM vk)
+{
+    static const std::pair<WPARAM, int> keys[] = {
+        {'Z', 0}, {'S', 1}, {'X', 2}, {'D', 3}, {'C', 4}, {'V', 5},
+        {'G', 6}, {'B', 7}, {'H', 8}, {'N', 9}, {'J', 10}, {'M', 11},
+        {VK_OEM_COMMA, 12}, {'L', 13}, {VK_OEM_PERIOD, 14}, {VK_OEM_1, 15},
+        {VK_OEM_2, 16},
+        {'Q', 12}, {'2', 13}, {'W', 14}, {'3', 15}, {'E', 16}, {'R', 17},
+        {'5', 18}, {'T', 19}, {'6', 20}, {'Y', 21}, {'7', 22}, {'U', 23},
+        {'I', 24}, {'9', 25}, {'O', 26}, {'0', 27}, {'P', 28},
+    };
+    for(auto &k : keys)
+        if(k.first == vk)
+            return k.second;
+    return -1;
+}
+
+void playTitle()
+{
+    std::wstring t = L"Play: part " + std::to_wstring(currentPart() + 1) +
+                     L", octave " + std::to_wstring(gPlayOctave) +
+                     L", velocity " + std::to_wstring(gPlayVelocity);
+    SetWindowTextW(gPlayWnd, t.c_str());
+}
+
+void releaseAll()
+{
+    for(auto &h : gHeld)
+        send("/noteOff", "ii", h.second.first, h.second.second);
+    gHeld.clear();
+}
+
+LRESULT CALLBACK playProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch(msg) {
+        case WM_KEYDOWN: {
+            if(wp == VK_ESCAPE) {
+                DestroyWindow(h);
+                return 0;
+            }
+            if(wp == VK_PRIOR || wp == VK_NEXT) {
+                releaseAll();
+                gPlayOctave += wp == VK_PRIOR ? 1 : -1;
+                gPlayOctave = gPlayOctave < 0 ? 0 : (gPlayOctave > 8 ? 8 : gPlayOctave);
+                playTitle();
+                say(L"Octave " + std::to_wstring(gPlayOctave));
+                return 0;
+            }
+            if(wp == VK_UP || wp == VK_DOWN) {
+                gPlayVelocity += wp == VK_UP ? 10 : -10;
+                gPlayVelocity = gPlayVelocity < 1 ? 1 : (gPlayVelocity > 127 ? 127 : gPlayVelocity);
+                playTitle();
+                say(L"Velocity " + std::to_wstring(gPlayVelocity));
+                return 0;
+            }
+            const int off = keyOffset(wp);
+            if(off < 0 || (lp & (1 << 30)) || gHeld.count(wp))
+                return 0;
+            const int note = 12 * (gPlayOctave + 1) + off;
+            if(note > 127)
+                return 0;
+            const int chan = currentPart() % 16;
+            gHeld[wp] = {chan, note};
+            send("/noteOn", "iii", chan, note, gPlayVelocity);
+            return 0;
+        }
+        case WM_KEYUP: {
+            auto it = gHeld.find(wp);
+            if(it != gHeld.end()) {
+                send("/noteOff", "ii", it->second.first, it->second.second);
+                gHeld.erase(it);
+            }
+            return 0;
+        }
+        case WM_CHAR:
+        case WM_SYSCHAR:
+            return 0; //no beeps
+        case WM_KILLFOCUS:
+            releaseAll();
+            return 0;
+        case WM_TIMER:
+            if(access::onTimer(wp))
+                return 0;
+            break;
+        case WM_DESTROY:
+            releaseAll();
+            gPlayWnd = nullptr;
+            if(gMain)
+                SetFocus(gTree);
+            return 0;
+    }
+    return DefWindowProcW(h, msg, wp, lp);
+}
+
+void openPlay()
+{
+    if(gPlayWnd) {
+        SetFocus(gPlayWnd);
+        return;
+    }
+    gPlayWnd = CreateWindowExW(0, L"ZynAccessiblePlay", L"Play",
+                               WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+                               CW_USEDEFAULT, CW_USEDEFAULT, px(420), px(120),
+                               gMain, nullptr, gInst, nullptr);
+    playTitle();
+    ShowWindow(gPlayWnd, SW_SHOW);
+    SetFocus(gPlayWnd);
+    say(L"Keys Z to slash and Q to P play notes. Page Up and Page Down "
+        L"change octave, Up and Down velocity. Escape closes.");
+}
+
+// ------------------------------------------------- part names in tree
+
+void updatePartItem(int part)
+{
+    if(part < 0 || part >= kParts || !gPartItem[part])
+        return;
+    std::wstring t = L"Part " + std::to_wstring(part + 1);
+    if(!gPartName[part].empty())
+        t += L": " + gPartName[part];
+    if(!gPartEnabled[part])
+        t += L", off";
+    TVITEMW it = {};
+    it.mask    = TVIF_TEXT;
+    it.hItem   = gPartItem[part];
+    it.pszText = (LPWSTR)t.c_str();
+    SendMessageW(gTree, TVM_SETITEMW, 0, (LPARAM)&it);
+}
+
+void requestPartNames()
+{
+    for(int i = 0; i < kParts; ++i) {
+        request("/part" + std::to_string(i) + "/Pname");
+        request("/part" + std::to_string(i) + "/Penabled");
+    }
+}
+
+//! Replies the tree and the bank browser want (whatever the pane shows)
+void handleSideMessage(const char *msg, const char *args)
+{
+    int part = -1;
+    char field[32] = "";
+    if(sscanf(msg, "/part%d/%31s", &part, field) == 2 && part >= 0 &&
+       part < kParts && gPartItem[part]) {
+        if(!strcmp(field, "Pname") && args[0] == 's') {
+            gPartName[part] = widen(rtosc_argument(msg, 0).s);
+            updatePartItem(part);
+        } else if(!strcmp(field, "Penabled") && (args[0] == 'T' || args[0] == 'F')) {
+            gPartEnabled[part] = args[0] == 'T';
+            updatePartItem(part);
+        }
+        return;
+    }
+    if(!strcmp(msg, "/bank/bank_list")) {
+        gBanks.clear();
+        const int n = (int)strlen(args);
+        for(int i = 0; i + 1 < n; i += 2)
+            gBanks.emplace_back(rtosc_argument(msg, i).s,
+                                rtosc_argument(msg, i + 1).s);
+        if(gBankDlg) {
+            HWND l = GetDlgItem(gBankDlg, IDC_BANK_LIST);
+            SendMessageW(l, LB_RESETCONTENT, 0, 0);
+            for(size_t i = 0; i < gBanks.size(); ++i) {
+                int at = (int)SendMessageW(l, LB_ADDSTRING, 0,
+                                           (LPARAM)widen(gBanks[i].first).c_str());
+                SendMessageW(l, LB_SETITEMDATA, at, (LPARAM)i);
+            }
+            if(gBanks.empty())
+                say(L"No instrument banks found");
+            if(gBankPos >= 0)
+                SendMessageW(l, LB_SETCURSEL, gBankPos, 0);
+        }
+        return;
+    }
+    if(!strcmp(msg, "/bank/bank_select") && !strcmp(args, "i")) {
+        gBankPos = rtosc_argument(msg, 0).i;
+        if(gBankDlg) {
+            SendDlgItemMessageW(gBankDlg, IDC_BANK_LIST, LB_SETCURSEL, gBankPos, 0);
+            requestSlots();
+        }
+        return;
+    }
+    if(!strcmp(msg, "/bankview") && !strcmp(args, "iss")) {
+        int i = rtosc_argument(msg, 0).i;
+        if(i >= 0 && i < kBankSlots) {
+            gSlots[i].name = rtosc_argument(msg, 1).s;
+            gSlots[i].file = rtosc_argument(msg, 2).s;
+            gSlotsChanged  = true;
+        }
+        return;
+    }
+}
+
 const wchar_t *kHelp =
     L"Keys\n\n"
     L"F6: move between the tree and the settings of the selected group.\n"
@@ -644,6 +1025,8 @@ const wchar_t *kHelp =
     L"Ctrl+N: new (reset everything)\n"
     L"Ctrl+O: open a master file (.xmz)\n"
     L"Ctrl+S: save a master file\n"
+    L"Ctrl+B: instrument banks (Enter loads, Space plays a note)\n"
+    L"Ctrl+K: play from the computer keyboard\n"
     L"Ctrl+I: open an instrument (.xiz) into the current part\n"
     L"Ctrl+Shift+S: save the current part as an instrument\n"
     L"Ctrl+Z, Ctrl+Y: undo, redo\n"
@@ -738,6 +1121,12 @@ void command(int id)
         case IDM_FOCUS_TREE:
             SetFocus(gTree);
             break;
+        case IDM_BANK:
+            openBanks();
+            break;
+        case IDM_PLAY:
+            openPlay();
+            break;
     }
 }
 
@@ -749,6 +1138,7 @@ HMENU makeMenu()
     AppendMenuW(file, MF_STRING, IDM_OPEN, L"&Open...\tCtrl+O");
     AppendMenuW(file, MF_STRING, IDM_SAVE, L"&Save as...\tCtrl+S");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, IDM_BANK, L"Instrument &banks...\tCtrl+B");
     AppendMenuW(file, MF_STRING, IDM_OPEN_INSTR,
                 L"Open &instrument into current part...\tCtrl+I");
     AppendMenuW(file, MF_STRING, IDM_SAVE_INSTR,
@@ -757,6 +1147,8 @@ HMENU makeMenu()
     AppendMenuW(file, MF_STRING, IDM_EXIT, L"E&xit\tAlt+F4");
     AppendMenuW(edit, MF_STRING, IDM_UNDO, L"&Undo\tCtrl+Z");
     AppendMenuW(edit, MF_STRING, IDM_REDO, L"&Redo\tCtrl+Y");
+    AppendMenuW(opts, MF_STRING, IDM_PLAY,
+                L"&Play from computer keyboard...\tCtrl+K");
     AppendMenuW(opts, MF_STRING, IDM_SETTINGS, L"&Audio and MIDI...\tCtrl+Comma");
     AppendMenuW(help, MF_STRING, IDM_HELP_KEYS, L"&Keys\tF1");
     AppendMenuW(help, MF_STRING, IDM_ABOUT, L"&About");
@@ -778,6 +1170,8 @@ HACCEL makeAccel()
         {FCONTROL | FVIRTKEY, 'Z', IDM_UNDO},
         {FCONTROL | FVIRTKEY, 'Y', IDM_REDO},
         {FCONTROL | FVIRTKEY, VK_OEM_COMMA, IDM_SETTINGS},
+        {FCONTROL | FVIRTKEY, 'B', IDM_BANK},
+        {FCONTROL | FVIRTKEY, 'K', IDM_PLAY},
         {FVIRTKEY, VK_F1, IDM_HELP_KEYS},
         {FVIRTKEY, VK_F6, IDM_SWITCH_PANE},
         {FSHIFT | FVIRTKEY, VK_F6, IDM_SWITCH_PANE},
@@ -797,7 +1191,14 @@ HTREEITEM insertNode(HTREEITEM parent, const Node &n)
     ins.item.pszText = (LPWSTR)gNodes.back().label.c_str();
     ins.item.lParam  = (LPARAM)(gNodes.size() - 1);
     ins.item.cChildren = children(n).empty() ? 0 : 1;
-    return (HTREEITEM)SendMessageW(gTree, TVM_INSERTITEMW, 0, (LPARAM)&ins);
+    HTREEITEM item =
+        (HTREEITEM)SendMessageW(gTree, TVM_INSERTITEMW, 0, (LPARAM)&ins);
+    int part = -1;
+    char rest[8] = "";
+    if(sscanf(n.path.c_str(), "/part%d%7s", &part, rest) == 2 &&
+       !strcmp(rest, "/") && part >= 0 && part < kParts)
+        gPartItem[part] = item;
+    return item;
 }
 
 void fillChildren(HTREEITEM item)
@@ -1053,6 +1454,10 @@ bool registerClasses()
         return false;
     wc.lpfnWndProc   = canvasProc;
     wc.lpszClassName = L"ZynAccessibleCanvas";
+    if(!RegisterClassExW(&wc))
+        return false;
+    wc.lpfnWndProc   = playProc;
+    wc.lpszClassName = L"ZynAccessiblePlay";
     return RegisterClassExW(&wc) != 0;
 }
 
@@ -1074,6 +1479,7 @@ void handleMessage(const char *msg)
         return;
     trace("<", msg);
     const char *args = rtosc_argument_string(msg);
+    handleSideMessage(msg, args);
     auto it = gByPath.find(msg);
     if(it != gByPath.end()) {
         Ctl &c = *it->second;
@@ -1104,6 +1510,8 @@ void handleMessage(const char *msg)
            prefix.compare(0, pane.size(), pane) == 0)
             for(auto &c : gCtls)
                 request(c->p.path);
+        if(prefix == "/" || prefix.compare(0, 5, "/part") == 0)
+            requestPartNames();
         return;
     }
     if(!strcmp(msg, "/show")) {
@@ -1183,6 +1591,7 @@ ui_handle_t createUi(Fl_Osc_Interface *, void *exit)
     layoutMain();
     TreeView_SelectItem(gTree, root);
     SetFocus(gTree);
+    requestPartNames();
     status(L"Ready. F1 lists the keys.");
     return (ui_handle_t)gMain;
 }
@@ -1225,9 +1634,13 @@ void tickUi(ui_handle_t)
                 *gExit = 1;
             continue;
         }
+        if(bankKey(m))
+            continue;
         if(gMain && gAccel && TranslateAcceleratorW(gMain, gAccel, &m))
             continue;
         if(handleKey(m))
+            continue;
+        if(gBankDlg && IsDialogMessageW(gBankDlg, &m))
             continue;
         if(gMain && IsDialogMessageW(gMain, &m))
             continue;
@@ -1236,6 +1649,7 @@ void tickUi(ui_handle_t)
     }
     if(gMain)
         followFocus();
+    refillInstruments();
     MsgWaitForMultipleObjects(0, nullptr, FALSE, 1, QS_ALLINPUT);
 }
 

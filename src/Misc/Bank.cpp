@@ -14,6 +14,7 @@
 */
 
 #include "Bank.h"
+#include <set>
 #include <string>
 #include <cstring>
 #include <cstdio>
@@ -369,9 +370,24 @@ void Bank::rescanforbanks()
     //remove old banks
     banks.clear();
 
-    for(int i = 0; i < MAX_BANK_ROOT_DIRS; ++i)
-        if(!config->cfg.bankRootDirList[i].empty())
-            scanrootdir(config->cfg.bankRootDirList[i]);
+    //the same folder can be listed twice under different spellings
+    //("banks" and the program's own banks folder): scan it once
+    std::set<std::string> scannedRoots;
+    for(int i = 0; i < MAX_BANK_ROOT_DIRS; ++i) {
+        std::string root = config->cfg.bankRootDirList[i];
+        if(root.empty())
+            continue;
+        std::string expanded = root;
+        expanddirname(expanded);
+        std::error_code ec;
+        std::string key =
+            std::filesystem::weakly_canonical(expanded, ec).string();
+        if(ec || key.empty())
+            key = expanded;
+        if(!scannedRoots.insert(key).second)
+            continue;
+        scanrootdir(root);
+    }
 #ifdef WIN32
     {
         //Search the VST Directory for banks/preset/etc

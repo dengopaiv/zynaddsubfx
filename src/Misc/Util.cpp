@@ -247,6 +247,21 @@ static std::string windows_app_dir(const char *var)
 }
 #endif
 
+std::string os_exe_dir()
+{
+#ifdef WIN32
+    wchar_t buf[MAX_PATH * 4];
+    DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH * 4);
+    if(n == 0 || n >= MAX_PATH * 4)
+        return ".";
+    std::filesystem::path p(std::wstring(buf, n));
+    const std::u8string u = p.parent_path().u8string();
+    return std::string(u.begin(), u.end());
+#else
+    return ".";
+#endif
+}
+
 std::string os_autosave_dir()
 {
 #ifdef WIN32

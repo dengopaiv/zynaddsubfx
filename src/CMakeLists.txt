@@ -577,6 +577,13 @@ if(Win32Gui)
     set_target_properties(zynaddsubfx PROPERTIES WIN32_EXECUTABLE TRUE)
     target_link_options(zynaddsubfx PRIVATE /ENTRY:mainCRTStartup)
 endif()
+if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/instruments/banks")
+    # the instrument banks next to the program, as in the release package
+    add_custom_command(TARGET zynaddsubfx POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${CMAKE_SOURCE_DIR}/instruments/banks"
+            "$<TARGET_FILE_DIR:zynaddsubfx>/banks")
+endif()
 
 if(Werror)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
