@@ -181,8 +181,13 @@ elseif (OssEnable)
 elseif (PaEnable)
     SET (DefaultOutput pa CACHE STRING
         "Default Output module: [null, alsa, oss, jack, portaudio]")
-    SET (DefaultInput null CACHE STRING
-        "Default Input module: [null, alsa, oss, jack]")
+    if (WIN32)
+        SET (DefaultInput winmidi CACHE STRING
+            "Default Input module: [null, winmidi]")
+    else ()
+        SET (DefaultInput null CACHE STRING
+            "Default Input module: [null, alsa, oss, jack]")
+    endif ()
 elseif (SndioEnable)
     SET (DefaultOutput sndio CACHE STRING
         "Default Output module: [null, alsa, oss, jack, portaudio, sndio]")

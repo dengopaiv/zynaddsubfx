@@ -486,6 +486,34 @@ namespace Nio
                     d.reply(d.loc, "s", Nio::getSink().c_str());
                 else
                     Nio::setSink(rtosc_argument(msg,0).s);}},
+        {"audio-device-list:", rDoc("Audio outputs that can be chosen"), 0,
+            [](const char *, rtosc::RtData &d) {
+                char *ret = rtosc_splat(d.loc, Nio::getAudioDevices());
+                d.reply(ret);
+                delete [] ret;
+            }},
+        {"midi-device-list:", rDoc("MIDI inputs that can be chosen"), 0,
+            [](const char *, rtosc::RtData &d) {
+                char *ret = rtosc_splat(d.loc, Nio::getMidiDevices());
+                d.reply(ret);
+                delete [] ret;
+            }},
+        {"audio-device::s", rDoc("Chosen audio output, empty for the default"), 0,
+            [](const char *msg, rtosc::RtData &d) {
+                if(rtosc_narguments(msg) == 0)
+                    d.reply(d.loc, "s", Nio::audioDevice.c_str());
+                else {
+                    Nio::setAudioDevice(rtosc_argument(msg,0).s);
+                    d.broadcast(d.loc, "s", Nio::audioDevice.c_str());
+                }}},
+        {"midi-device::s", rDoc("Chosen MIDI input, empty for all of them"), 0,
+            [](const char *msg, rtosc::RtData &d) {
+                if(rtosc_narguments(msg) == 0)
+                    d.reply(d.loc, "s", Nio::midiDevice.c_str());
+                else {
+                    Nio::setMidiDevice(rtosc_argument(msg,0).s);
+                    d.broadcast(d.loc, "s", Nio::midiDevice.c_str());
+                }}},
         {"audio-compressor::T:F", 0, 0, [](const char *msg, rtosc::RtData &d) {
                 if(rtosc_narguments(msg) == 0)
                     d.reply(d.loc, Nio::getAudioCompressor() ? "T" : "F");

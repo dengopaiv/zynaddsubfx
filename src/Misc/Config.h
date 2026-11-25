@@ -57,6 +57,8 @@ class Config
             int   UserInterfaceMode;
             int   VirKeybLayout;
             std::string LinuxALSAaudioDev;
+            std::string AudioOutputDevice; //chosen audio output, "" = default
+            std::string MidiInputDevice;   //chosen MIDI input, "" = all
             std::string nameTag;
         } cfg;
         int winwavemax, winmidimax; //number of wave/midi devices on Windows

@@ -38,6 +38,9 @@ using namespace std;
 #if SNDIO
 #include "SndioEngine.h"
 #endif
+#ifdef WIN32
+#include "WinMidiEngine.h"
+#endif
 
 namespace zyn {
 
@@ -73,6 +76,9 @@ EngineMgr::EngineMgr(const SYNTH_T *synth, const oss_devs_t& oss_devs)
 #endif
 #if SNDIO
     engines.push_back(new SndioEngine(*synth));
+#endif
+#ifdef WIN32
+    engines.push_back(new WinMidiEngine(*synth));
 #endif
 
     defaultOut = dynamic_cast<AudioOut *>(defaultEng);

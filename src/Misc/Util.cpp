@@ -326,6 +326,21 @@ char *rtosc_splat(const char *path, std::set<std::string> v)
     return buf;
 }
 
+char *rtosc_splat(const char *path, const std::vector<std::string> &v)
+{
+    std::vector<char> argT(v.size()+1, 0);
+    std::vector<rtosc_arg_t> arg(v.size() ? v.size() : 1);
+    for(unsigned i = 0; i < v.size(); ++i) {
+        argT[i]  = 's';
+        arg[i].s = v[i].c_str();
+    }
+
+    size_t len = rtosc_amessage(0, 0, path, argT.data(), arg.data());
+    char *buf = new char[len];
+    rtosc_amessage(buf, len, path, argT.data(), arg.data());
+    return buf;
+}
+
 void expanddirname(std::string &dirname) {
     if (dirname.empty())
         return;

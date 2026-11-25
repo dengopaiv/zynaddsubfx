@@ -13,6 +13,7 @@
 #define NIO_H
 #include <string>
 #include <set>
+#include <vector>
 
 namespace zyn {
 
@@ -60,10 +61,21 @@ namespace Nio
     void setAudioCompressor(bool isEnabled);
     bool getAudioCompressor(void);
 
+    //Devices within the current engines (Windows: PortAudio and winmm)
+    //Names of the audio outputs and MIDI inputs that can be chosen
+    std::vector<std::string> getAudioDevices(void);
+    std::vector<std::string> getMidiDevices(void);
+    //Choose a device by name ("" = default output / every MIDI input);
+    //restarts the engine using it if that engine is running
+    void setAudioDevice(std::string name);
+    void setMidiDevice(std::string name);
+
     extern bool autoConnect;
     extern bool pidInClientName;
     extern std::string defaultSource;
     extern std::string defaultSink;
+    extern std::string audioDevice; //chosen audio output, "" = default
+    extern std::string midiDevice;  //chosen MIDI input, "" = all
 };
 
 }

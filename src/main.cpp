@@ -32,7 +32,6 @@
 #ifdef WIN32
 // before any "using namespace std": the SDK's byte would clash with std::byte
 #include <windows.h>
-#include <mmsystem.h>
 #endif
 
 #include <sys/types.h>
@@ -98,7 +97,7 @@ NSM_Client *nsm = 0;
 
 char *instance_name = 0;
 
-void exitprogram(const Config &config);
+void exitprogram(Config &config);
 
 
 //cleanup on signaled exit
@@ -120,15 +119,19 @@ void initprogram(SYNTH_T synth, Config* config, int preferred_port)
 
     signal(SIGINT, sigterm_exit);
     signal(SIGTERM, sigterm_exit);
+    Nio::audioDevice = config->cfg.AudioOutputDevice;
+    Nio::midiDevice  = config->cfg.MidiInputDevice;
     Nio::init(master->synth, config->cfg.oss_devs, master);
 }
 
 /*
  * Program exit
  */
-void exitprogram(const Config& config)
+void exitprogram(Config& config)
 {
     Nio::stop();
+    config.cfg.AudioOutputDevice = Nio::audioDevice;
+    config.cfg.MidiInputDevice   = Nio::midiDevice;
     config.save();
     middleware->removeAutoSave();
 
@@ -146,84 +149,6 @@ void exitprogram(const Config& config)
     FFT_cleanup();
 }
 
-//Windows MIDI OH WHAT A HACK...
-#ifdef WIN32
-namespace zyn{
-extern InMgr  *in;
-}
-HMIDIIN winmidiinhandle = 0;
-
-void CALLBACK WinMidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD dwInstance,
-                            DWORD dwParam1,DWORD dwParam2)
-{
-    int midicommand=0;
-    if (wMsg==MIM_DATA) {
-        int cmd,par1,par2;
-        cmd=dwParam1&0xff;
-        if (cmd==0xfe) return;
-        par1=(dwParam1>>8)&0xff;
-        par2=dwParam1>>16;
-        int cmdchan=cmd&0x0f;
-        int cmdtype=(cmd>>4)&0x0f;
-
-        int tmp=0;
-        MidiEvent ev;
-        switch (cmdtype) {
-            case(0x8)://noteon
-                ev.type = 1;
-                ev.num = par1;
-                ev.channel = cmdchan;
-                ev.value = 0;
-                in->putEvent(ev);
-                break;
-            case(0x9)://noteoff
-                ev.type = 1;
-                ev.num = par1;
-                ev.channel = cmdchan;
-                ev.value = par2&0xff;
-                in->putEvent(ev);
-                break;
-            case(0xb)://controller
-                ev.type = 2;
-                ev.num = par1;
-                ev.channel = cmdchan;
-                ev.value = par2&0xff;
-                in->putEvent(ev);
-                break;
-            case(0xe)://pitch wheel
-                //tmp=(par1+par2*(long int) 128)-8192;
-                //winmaster->SetController(cmdchan,C_pitchwheel,tmp);
-                break;
-            default:
-                break;
-        };
-
-    };
-};
-
-void InitWinMidi(int midi)
-{
-(void)midi;
-    for(int i=0; i<10; ++i) {
-        long int res=midiInOpen(&winmidiinhandle,i,(DWORD_PTR)(void*)WinMidiInProc,0,CALLBACK_FUNCTION);
-        if(res == MMSYSERR_NOERROR) {
-            res=midiInStart(winmidiinhandle);
-            printf("[INFO] Starting Windows MIDI At %d with code %ld(noerror=%d)\n", i, res, MMSYSERR_NOERROR);
-            if(res == 0)
-                return;
-        } else
-            printf("[INFO] No Windows MIDI Device At id %d\n", i);
-    }
-};
-
-//void StopWinMidi()
-//{
-//    midiInStop(winmidiinhandle);
-//    midiInClose(winmidiinhandle);
-//};
-#else
-void InitWinMidi(int) {}
-#endif
 
 
 int main(int argc, char *argv[])
@@ -626,7 +551,7 @@ int main(int argc, char *argv[])
             cerr << "Command Failed..." << endl;
     }
 
-    InitWinMidi(wmidi);
+    (void)wmidi; //-Z is obsolete: the MIDI input is chosen in the settings
     master->setAudioCompressor(compr);
 
     gui = NULL;

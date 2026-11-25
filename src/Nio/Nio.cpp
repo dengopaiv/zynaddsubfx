@@ -17,6 +17,12 @@
 #include "AudioOut.h"
 #include "WavEngine.h"
 #include "../Misc/Config.h"
+#if PORTAUDIO
+#include "PaEngine.h"
+#endif
+#ifdef WIN32
+#include "WinMidiEngine.h"
+#endif
 #include <cstring>
 #include <iostream>
 #include <algorithm>
@@ -44,6 +50,8 @@ bool   Nio::autoConnect     = false;
 bool   Nio::pidInClientName = false;
 string Nio::defaultSource   = IN_DEFAULT;
 string Nio::defaultSink     = OUT_DEFAULT;
+string Nio::audioDevice;
+string Nio::midiDevice;
 
 void Nio::init(const SYNTH_T &synth, const oss_devs_t& oss_devs,
                class Master *master)
@@ -195,6 +203,42 @@ void Nio::setAudioCompressor(bool isEnabled)
 bool Nio::getAudioCompressor(void)
 {
     return out->getAudioCompressor();
+}
+
+std::vector<std::string> Nio::getAudioDevices(void)
+{
+#if PORTAUDIO
+    return PaEngine::deviceNames();
+#else
+    return std::vector<std::string>();
+#endif
+}
+
+std::vector<std::string> Nio::getMidiDevices(void)
+{
+#ifdef WIN32
+    return WinMidiEngine::deviceNames();
+#else
+    return std::vector<std::string>();
+#endif
+}
+
+void Nio::setAudioDevice(std::string name)
+{
+    audioDevice = name;
+    if(out && getSink() == "PA") {
+        out->setSink("NULL");
+        out->setSink("PA");
+    }
+}
+
+void Nio::setMidiDevice(std::string name)
+{
+    midiDevice = name;
+    if(in && getSource() == "WINMIDI") {
+        in->setSource("NULL");
+        in->setSource("WINMIDI");
+    }
 }
 
 }

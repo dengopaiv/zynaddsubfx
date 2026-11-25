@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <set>
+#include <vector>
 
 #include <rtosc/ports.h>
 #include <rtosc/port-sugar.h>
@@ -179,6 +180,8 @@ template<class T>
 static inline void arrayNullify(T &t) {delete [] t; t = NULL; }
 
 char *rtosc_splat(const char *path, std::set<std::string>);
+//! the same, keeping the order of the list
+char *rtosc_splat(const char *path, const std::vector<std::string> &);
 
 /** Expands ~ prefix & ZYN_DATADIR in dirname */
 void expanddirname(std::string &dirname);

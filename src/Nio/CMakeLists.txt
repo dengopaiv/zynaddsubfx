@@ -47,6 +47,11 @@ if(OssEnable)
     list(APPEND zynaddsubfx_nio_SRCS OssEngine.cpp OssMultiEngine.cpp)
 endif(OssEnable)
 
+if(WIN32)
+    list(APPEND zynaddsubfx_nio_SRCS WinMidiEngine.cpp)
+    list(APPEND zynaddsubfx_nio_lib winmm)
+endif()
+
 if(SndioEnable)
     list(APPEND zynaddsubfx_nio_SRCS SndioEngine.cpp)
     list(APPEND zynaddsubfx_nio_lib ${SNDIO_LIBRARY})

@@ -399,6 +399,9 @@ void Config::readConfig(const char *filename)
                          cfg.oss_devs.linux_seq_in,
                          MAX_STRING_SIZE);
 
+        cfg.AudioOutputDevice = xmlcfg.getparstr("audio_output_device", "");
+        cfg.MidiInputDevice   = xmlcfg.getparstr("midi_input_device", "");
+
         //windows stuff
         cfg.WindowsWaveOutId = xmlcfg.getpar("windows_wave_out_id",
                                              cfg.WindowsWaveOutId,
@@ -466,6 +469,9 @@ void Config::saveConfig(const char *filename) const
     //linux stuff
     xmlcfg->addparstr("linux_oss_wave_out_dev", cfg.oss_devs.linux_wave_out);
     xmlcfg->addparstr("linux_oss_seq_in_dev", cfg.oss_devs.linux_seq_in);
+
+    xmlcfg->addparstr("audio_output_device", cfg.AudioOutputDevice);
+    xmlcfg->addparstr("midi_input_device", cfg.MidiInputDevice);
 
     //windows stuff
     xmlcfg->addpar("windows_wave_out_id", cfg.WindowsWaveOutId);

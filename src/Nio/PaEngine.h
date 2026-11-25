@@ -14,6 +14,8 @@
 #define PA_ENGINE_H
 
 #include <portaudio.h>
+#include <string>
+#include <vector>
 
 #include "../globals.h"
 #include "AudioOut.h"
@@ -32,6 +34,9 @@ class PaEngine:public AudioOut
         void setAudioEn(bool nval);
         bool getAudioEn() const;
 
+        //! output devices, as "Host API: device"; Nio::audioDevice takes one
+        static std::vector<std::string> deviceNames();
+
     protected:
         static int PAprocess(const void *inputBuffer,
                              void *outputBuffer,
@@ -41,6 +46,7 @@ class PaEngine:public AudioOut
                              void *userData);
         int process(float *out, unsigned long framesPerBuffer);
     private:
+        bool openStream(PaDeviceIndex device);
         PaStream *stream;
 };
 
