@@ -1,3 +1,42 @@
+ZynAddSubFX Accessible Edition
+------------------------------
+
+This is ZynAddSubFX for Windows with a screen reader accessible interface.
+Its window is made of standard Windows controls (a tree of the
+synthesizer's structure and, for each group, sliders, lists, check boxes
+and buttons), so NVDA, JAWS and Narrator read it without add-ons, and
+everything can be done from the keyboard. The graphical interfaces of
+upstream ZynAddSubFX (FLTK, NTK and Zyn-Fusion) are removed; the
+synthesizer itself is upstream's, tracking its master branch.
+
+* How to use it: link:doc/accessible/MANUAL.txt[the manual] (also in the
+  release zip; F1 in the program lists the keys).
+* How it was planned and where it stands:
+  link:ACCESSIBILITY-ROADMAP.md[the roadmap].
+
+Building on Windows
+~~~~~~~~~~~~~~~~~~~
+
+You need Visual Studio 2022 or newer with the C++ desktop workload, CMake
+3.24 or newer, and vcpkg (`VCPKG_ROOT` set). The dependencies (zlib,
+fftw3, mxml, liblo, PortAudio, getopt) come from `vcpkg.json`.
+
+----
+git submodule update --init
+cmake -S . -B build -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
+cmake --build build --config Release
+cd build && ctest -C Release
+python tools\package.py build\src\Release dist
+----
+
+Testing what a screen reader gets: `tools\uia_check.py` walks the window
+through UI Automation and lists every control's role, name, value and
+description (`--sweep` visits every group and fails on unnamed controls).
+Run it through `tools\hidden_desktop.py` to keep the test windows off the
+screen.
+
+The rest of this file is upstream's README.
+
 ZynAddSubFX
 -----------
 

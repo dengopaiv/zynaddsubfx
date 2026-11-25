@@ -1,11 +1,59 @@
 # ZynAddSubFX, accessible edition: roadmap
 
-Written 25 November 2026. Status: plan only. Nothing has been changed in the
-source code yet, and no new repository has been created.
+Written 25 November 2026. The aim: ZynAddSubFX, at upstream's latest
+version, builds on Windows with Visual Studio, has no decorative graphics,
+and every part of it can be used with NVDA, JAWS and Narrator through
+standard Windows controls.
 
-The aim: ZynAddSubFX, at upstream's latest version, builds on Windows with
-Visual Studio, has no decorative graphics, and every part of it can be used
-with NVDA, JAWS and Narrator through standard Windows controls.
+## 0. Status (25 November 2026, evening)
+
+Phases 1 to 9 are done on the local branch `accessible` of
+`C:\GIT\music\zynaddsubfx`, which starts from upstream `master` at
+`c379439e`, the latest version. **Nothing has been pushed:** the
+`dengopaiv/zynaddsubfx` fork on GitHub is unchanged until you say so.
+Decisions D1 to D5 were taken as recommended below (Win32, the existing fork
+with an `accessible` branch, MSVC, standalone first, "ZynAddSubFX
+Accessible Edition"). Each can still be changed.
+
+What exists now:
+
+* **Builds with Visual Studio 2026 and vcpkg.** No warnings, with warnings
+  treated as errors. **All 52 upstream tests pass.**
+* **Windows audio and MIDI.** WASAPI output by default, with every output
+  device choosable. A winmm MIDI input engine reads every input or a chosen
+  one, including pitch bend, program change and aftertouch. The choices are
+  saved.
+* **Graphics removed.** The FLTK, NTK and Zyn-Fusion interfaces, pixmaps,
+  icons other than the program's own, and screenshots in the documentation
+  are gone (about 22,000 lines). The synthesis code is unchanged.
+* **The accessible interface**, generated from the engine's metadata:
+  * a tree of the whole synthesizer, with parts named after their
+    instruments and effect slots after their effect type;
+  * a pane of standard controls per group, with values spoken in units;
+  * editors for harmonics, envelope points, resonance and tuning;
+  * action buttons;
+  * a bank browser with preview, playing from the computer keyboard, and
+    file, undo and audio/MIDI menus.
+* **Checked through UI Automation** (`tools/uia_check.py --sweep`, run on a
+  hidden desktop with `tools/hidden_desktop.py`): every group under Part 1,
+  the effects, Tuning, Controllers and Settings, for unnamed controls and
+  sliders without values.
+* **Release zip** (`tools/package.py`), including the banks, the manual
+  (`doc/accessible/MANUAL.txt`) and the Visual C++ runtime. A GitHub
+  Actions workflow builds, tests and packages on `windows-latest`.
+
+Still open:
+
+* **Listening tests** with NVDA, JAWS and Narrator by a person, and sound
+  checked by ear. Only the automated checks above have been run.
+* **Value formatting (Phase 6)** covers units from the engine plus panning,
+  detune, keys and times. Many 0 to 127 parameters still read as plain
+  numbers where the engine has no unit for them.
+* **Upstream pull requests** for the general fixes in section 3.2.
+* **The Linux build** of this branch has not been tried.
+* **The plugin (Phase 10)**: not started.
+* **Pushing** the branch to `dengopaiv/zynaddsubfx`, and the CI's first
+  run.
 
 ## 1. Verdict: is it doable?
 

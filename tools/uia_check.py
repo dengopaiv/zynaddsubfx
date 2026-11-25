@@ -14,6 +14,7 @@ Exits with status 1 if a control has no name, or a slider's value is a
 bare position number where the engine has a unit.
 """
 import ctypes
+import re
 import subprocess
 import sys
 import time
@@ -91,7 +92,7 @@ def goto(uia, tree, path):
         parent = item
     pattern(item, UIA_SelectionItemPatternId,
             IUIAutomationSelectionItemPattern).Select()
-    time.sleep(2.0)  # the pane is rebuilt and its values arrive
+    time.sleep(1.0)  # the pane is rebuilt and its values arrive
 
 
 def bare_number(s):
@@ -119,9 +120,64 @@ def pane(uia, root):
     return rows
 
 
+#: --sweep visits only the first of the repeated groups (Part 1, Kit item 1,
+#: Voice 1, System effect 1 ...): the others are built from the same ports
+REPEATS = re.compile(r'^(Part|Kit item|Voice|System effect|Insertion effect|Vowel|Formant|'
+                     r'Part effect|Band) (\d+)')
+
+
+def children_names(uia, tree, path):
+    item = tree
+    for name in path.split('>'):
+        item = tree_item(uia, item, name)
+    ec = pattern(item, UIA_ExpandCollapsePatternId,
+                 IUIAutomationExpandCollapsePattern)
+    if ec.CurrentExpandCollapseState == 3:  # a leaf: nothing to open
+        return []
+    try:
+        ec.Expand()
+    except comtypes.COMError:
+        return []
+    time.sleep(0.3)
+    kids = item.FindAll(TreeScope_Children, uia.CreatePropertyCondition(
+        UIA_ControlTypePropertyId, UIA_TreeItemControlTypeId))
+    return [kids.GetElement(i).CurrentName for i in range(kids.Length)]
+
+
+def sweep_paths(uia, tree, path, out):
+    out.append(path)
+    for name in children_names(uia, tree, path):
+        m = REPEATS.match(name)
+        if m and m.group(2) != '1':
+            continue
+        sweep_paths(uia, tree, path + '>' + name, out)
+
+
+def check(path, rows, problems, verbose):
+    if verbose:
+        print(f'\n== {path}: {len(rows)} objects')
+    for role, name, value, desc in rows:
+        if role == 'text':
+            continue
+        if verbose:
+            d = desc.split('\n')[0][:50]
+            print(f'  {role:10} | {name[:40]:40} | {value[:28]:28} | {d}')
+        found = None
+        if not name:
+            found = f'{path}: a {role} without a name'
+        elif role == 'slider' and not value:
+            found = f'{path}: slider "{name}" without a value'
+        if found:
+            problems.append(found)
+            print('PROBLEM ' + found, flush=True)
+
+
 def main():
     exe = sys.argv[1]
-    tour = sys.argv[2:] or DEFAULT_TOUR
+    args = sys.argv[2:]
+    sweep = '--sweep' in args
+    args = [a for a in args if a != '--sweep']
+    tour = args or (['Master'] if sweep else DEFAULT_TOUR)
     proc = subprocess.Popen([exe, '-O', 'NULL'])
     problems = []
     try:
@@ -133,19 +189,23 @@ def main():
         tree = root.FindFirst(TreeScope_Descendants, uia.CreatePropertyCondition(
             UIA_ClassNamePropertyId, 'SysTreeView32'))
         print('window:', root.CurrentName, '| tree:', legacy(tree).CurrentName)
-        for path in tour:
-            goto(uia, tree, path)
-            rows = pane(uia, root)
-            print(f'\n== {path}: {len(rows)} objects')
-            for role, name, value, desc in rows:
-                if role == 'text':
-                    continue
-                d = desc.split('\n')[0][:50]
-                print(f'  {role:10} | {name[:40]:40} | {value[:28]:28} | {d}')
-                if not name:
-                    problems.append(f'{path}: a {role} without a name')
-                if role == 'slider' and not value:
-                    problems.append(f'{path}: slider "{name}" without a value')
+        if sweep:
+            paths = []
+            for start in tour:
+                sweep_paths(uia, tree, start, paths)
+            print(f'sweeping {len(paths)} groups:', paths[:6], '...', paths[-3:])
+            controls = 0
+            for n, path in enumerate(paths):
+                print(f'[{n + 1}/{len(paths)}] {path}', flush=True)
+                goto(uia, tree, path)
+                rows = pane(uia, root)
+                controls += sum(1 for r in rows if r[0] != 'text')
+                check(path, rows, problems, verbose=False)
+            print(f'{controls} controls checked')
+        else:
+            for path in tour:
+                goto(uia, tree, path)
+                check(path, pane(uia, root), problems, verbose=True)
         print()
         print('problems:' if problems else 'no problems found')
         for p in problems:

@@ -1,0 +1,180 @@
+ZynAddSubFX Accessible Edition
+==============================
+
+ZynAddSubFX is a software synthesizer with three engines (AddSynth,
+SubSynth and PADsynth), 16 parts, effects and microtonal tuning. This
+edition runs on Windows and is made of standard Windows controls, so NVDA,
+JAWS and Narrator read it without add-ons. Everything can be done from the
+keyboard.
+
+The synthesizer itself is upstream ZynAddSubFX, unchanged in sound. Only
+the interface is new: the graphical interfaces were removed.
+
+
+1. Starting
+-----------
+
+Unzip the package anywhere and run zynaddsubfx.exe. Nothing needs to be
+installed. The instrument banks are in the "banks" folder next to it.
+
+The program opens your default sound output (through WASAPI) and listens
+to every MIDI input that is connected. To choose others, use Options,
+Audio and MIDI (Ctrl+Comma). The choices are kept for next time.
+
+Settings are kept in %APPDATA%\ZynAddSubFX. Automatic saves (every minute,
+so a crash loses little) and the bank cache are in
+%LOCALAPPDATA%\ZynAddSubFX. If the program did not close properly, it
+offers to restore the automatic save when it starts.
+
+
+2. The window
+-------------
+
+The window has three parts:
+
+- the menu bar (Alt);
+- the Structure tree on the left;
+- the settings of the group chosen in the tree, on the right.
+
+F6 moves between the tree and the settings. Tab and Shift+Tab move between
+the controls of the settings.
+
+The tree holds the whole synthesizer:
+
+- Master: master volume, key shift, tempo, and Stop all sound.
+- Part 1 to Part 16, named after the instrument they hold. A part that is
+  off says so. In a part: Kit item 1 to 16 (most instruments use only the
+  first), and in a kit item the three engines: AddSynth, SubSynth and
+  PADsynth.
+- AddSynth: Global and Voice 1 to 8. Each has amplitude, frequency and
+  filter settings with their envelopes and LFOs, and an Oscillator.
+- System effect 1 to 4 and Insertion effect 1 to 8, named after their
+  effect type ("System effect 1: Reverb"). Choose the type in the effect's
+  settings; its own settings then appear below it in the tree.
+- Tuning: microtonal scales.
+- Controllers: how the part reacts to MIDI controllers.
+- Settings: sample rate, buffer size and other program settings (most take
+  effect after a restart).
+
+In the tree, Right arrow opens a group, Left closes it, and typing the
+start of a name jumps to it.
+
+
+3. Controls
+-----------
+
+Every setting is a standard control, named after what it does. Its longer
+explanation from the engine is the control's description, which screen
+readers read after a pause, or on request (NVDA+Tab in NVDA).
+
+Sliders say their value in its unit where the engine has one: decibels,
+milliseconds, hertz, semitones, percent, "centre" for panning, note names
+for key ranges.
+
+- Up and Right arrow raise a slider by one step, Down and Left lower it.
+- Page Up and Page Down move ten steps, Home and End go to the ends.
+- Enter types an exact value.
+- Backspace resets a slider, a list or a check box to its default.
+
+Lists (combo boxes) choose among named options: arrows change the choice.
+Check boxes switch with Space.
+
+Some groups have buttons for actions, for example "Convert to sine
+harmonics" in an Oscillator, "Apply changes" in PADsynth (PADsynth settings
+take effect only after this), and "Stop all sound" in Master.
+
+
+4. Editors for lists of values
+------------------------------
+
+Some settings are lists of many values: the 128 harmonics of an
+oscillator, the points of an envelope in free mode, the points of the
+resonance curve, the key mapping of a tuning. Each is a pair of sliders:
+
+- the first chooses which element ("Harmonic 5 of 128");
+- the second edits it ("Harmonic magnitude, Harmonic 5").
+
+Tuning has two text boxes: Tunings, one scale step per line (cents with a
+decimal point, like 100.0, or a ratio, like 3/2; the last line is the
+octave), and Key mapping. In these boxes Enter starts a new line,
+Ctrl+Enter applies the text, and Tab moves on.
+
+
+5. Instruments and files
+------------------------
+
+File, Instrument banks (Ctrl+B) opens the bank browser. It stays open
+while you work:
+
+- Banks: the instrument banks.
+- Instruments: the instruments of the chosen bank. Hold Space to hear a
+  note of the selected instrument on the chosen part.
+- Into part: where Enter (or Load) puts the instrument. Loading switches
+  the part on.
+
+Other files:
+
+- Ctrl+O and Ctrl+S open and save everything (.xmz files).
+- Ctrl+I opens an instrument file (.xiz) into the current part, the part
+  chosen in the tree.
+- Ctrl+Shift+S saves the current part as an instrument.
+- Ctrl+N resets everything.
+- Ctrl+Z and Ctrl+Y undo and redo changes.
+
+
+6. Playing without a MIDI keyboard
+----------------------------------
+
+Options, Play from computer keyboard (Ctrl+K) opens a small window that
+plays the current part:
+
+- the row from Z to slash plays one octave, with the black keys on the
+  row above (S, D, G, H, J ...);
+- the row from Q to P plays the next octave, with the black keys on the
+  number row;
+- Page Up and Page Down change the octave;
+- Up and Down change the velocity by 10;
+- Escape closes the window.
+
+
+7. Keys
+-------
+
+- F1: the list of keys
+- F6: tree or settings
+- Ctrl+N: new
+- Ctrl+O: open
+- Ctrl+S: save
+- Ctrl+B: instrument banks
+- Ctrl+I: open instrument into the current part
+- Ctrl+Shift+S: save the current part as an instrument
+- Ctrl+K: play from the computer keyboard
+- Ctrl+Z, Ctrl+Y: undo, redo
+- Ctrl+Comma: audio and MIDI devices
+- Enter on a slider: type a value
+- Backspace on a slider, list or check box: default
+
+
+8. Command line
+---------------
+
+zynaddsubfx.exe --help lists the options. Useful ones:
+
+- -U: no window (the synthesizer only, controlled over OSC or MIDI)
+- -L file.xiz: load an instrument
+- -l file.xmz: load a master file
+- -O NULL: no sound output (for tests)
+- -P port: the OSC port to listen on
+
+Started from a console, the program writes its messages there.
+
+
+9. Credits and licence
+----------------------
+
+ZynAddSubFX: Copyright (C) 2002-2013 Nasca Octavian Paul and others,
+2009-2026 Mark McCurry and the ZynAddSubFX contributors (AUTHORS.txt).
+Accessible Windows interface: dengopaiv, with Claude.
+
+Free software under the GNU General Public License, version 2 or later
+(COPYING.txt).

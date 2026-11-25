@@ -74,6 +74,11 @@ std::wstring groupLabel(const std::string &base, const char *doc)
         {"DynamicFilter",   L"Dynamic filter"},
         {"filter",          L"Band"},
         {"freqcrossover",   L"Crossover"},
+        {"Pvowels",         L"Vowel"},
+        {"Pformants",       L"Formant"},
+        {"Psysefxvol",      L"Sends to system effect"},
+        {"sysefxfrom",      L"Routing from system effect"},
+        {"Psysefxsend",     L"Sends from system effect"},
     };
     auto it = names.find(base);
     if(it != names.end())

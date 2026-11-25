@@ -1810,7 +1810,7 @@ ui_handle_t createUi(Fl_Osc_Interface *, void *exit)
         return nullptr;
 
     gMain = CreateWindowExW(WS_EX_CONTROLPARENT, L"ZynAccessibleMain",
-                            L"ZynAddSubFX", WS_OVERLAPPEDWINDOW,
+                            L"ZynAddSubFX Accessible Edition", WS_OVERLAPPEDWINDOW,
                             CW_USEDEFAULT, CW_USEDEFAULT, 1000, 700, nullptr,
                             makeMenu(), gInst, nullptr);
     if(!gMain)
