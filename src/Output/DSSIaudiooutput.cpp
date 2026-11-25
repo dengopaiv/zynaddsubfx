@@ -18,6 +18,7 @@
 //this file contains code used from trivial_synth.c from
 //the DSSI (published by Steve Harris under public domain) as a template.
 
+#include <vector>
 #include "DSSIaudiooutput.h"
 #include "../Misc/Master.h"
 #include "../Misc/Util.h"
@@ -49,6 +50,11 @@ namespace Nio {
     string getSink(void){return "";}
     void setAudioCompressor(bool){}
     bool getAudioCompressor(void){return false;}
+    std::string audioDevice, midiDevice;
+    std::vector<std::string> getAudioDevices(void){return {};}
+    std::vector<std::string> getMidiDevices(void){return {};}
+    void setAudioDevice(std::string){}
+    void setMidiDevice(std::string){}
 }
 } // namespace zyn
 

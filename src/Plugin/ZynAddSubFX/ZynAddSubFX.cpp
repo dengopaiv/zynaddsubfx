@@ -12,6 +12,7 @@
 */
 
 // DPF includes
+#include <vector>
 #include "DistrhoPlugin.hpp"
 
 // ZynAddSubFX includes
@@ -644,5 +645,10 @@ namespace Nio {
    void waveStop(){}
    void setAudioCompressor(bool){}
    bool getAudioCompressor(void){return false;}
+   std::string audioDevice, midiDevice;
+   std::vector<std::string> getAudioDevices(void){return {};}
+   std::vector<std::string> getMidiDevices(void){return {};}
+   void setAudioDevice(std::string){}
+   void setMidiDevice(std::string){}
 }
 }
