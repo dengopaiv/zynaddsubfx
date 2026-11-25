@@ -92,6 +92,56 @@ HTREEITEM    gPartItem[kParts]    = {};
 std::wstring gPartName[kParts];
 bool         gPartEnabled[kParts] = {true};
 
+//Every tree item by its node's path
+std::map<std::string, HTREEITEM> gItemByPath;
+
+//Effect slots: their current effect type (EffectMgr's efftype)
+std::map<std::string, int> gEffType;
+constexpr int kDynFilterType = 8;
+
+//! "/sysefx0/", "/insefx3/", "/part0/partefx1/"
+bool isEffectNode(const std::string &path)
+{
+    if(path.size() < 6 || path.back() != '/')
+        return false;
+    size_t i = path.size() - 1;
+    size_t d = i;
+    while(d > 0 && isdigit((unsigned char)path[d - 1]))
+        --d;
+    return d < i && d >= 3 && path.compare(d - 3, 3, "efx") == 0;
+}
+
+//! The port group of an effect type, as EffectMgr names its subtypes
+std::string effectGroup(int type)
+{
+    static const char *groups[] = {"", "Reverb", "Echo", "Chorus", "Phaser",
+        "Alienwah", "Distortion", "EQ", "DynamicFilter", "Sympathetic",
+        "Reverse"};
+    return type > 0 && type < 11 ? groups[type] : "";
+}
+
+std::wstring effectName(int type)
+{
+    static const wchar_t *names[] = {L"off", L"Reverb", L"Echo", L"Chorus",
+        L"Phaser", L"AlienWah", L"Distortion", L"EQ", L"Dynamic filter",
+        L"Sympathetic", L"Reverse"};
+    return type >= 0 && type < 11 ? names[type] : L"effect " + std::to_wstring(type);
+}
+
+//! A node's name in the tree: an effect slot with its effect type
+std::wstring nodeLabel(const Node &n)
+{
+    if(isEffectNode(n.path)) {
+        auto t = gEffType.find(n.path);
+        if(t != gEffType.end())
+            return t->second == 0 ? n.label + L", off"
+                                  : n.label + L": " + effectName(t->second);
+    }
+    return n.label;
+}
+
+void refreshEffect(const std::string &path);
+
 //Bank browser (a dialog that stays open)
 HWND gBankDlg = nullptr;
 struct Slot { std::string name, file; };
@@ -966,11 +1016,26 @@ void handleSideMessage(const char *msg, const char *args)
         if(!strcmp(field, "Pname") && args[0] == 's') {
             gPartName[part] = widen(rtosc_argument(msg, 0).s);
             updatePartItem(part);
-        } else if(!strcmp(field, "Penabled") && (args[0] == 'T' || args[0] == 'F')) {
+            return;
+        }
+        if(!strcmp(field, "Penabled") && (args[0] == 'T' || args[0] == 'F')) {
             gPartEnabled[part] = args[0] == 'T';
             updatePartItem(part);
+            return;
         }
-        return;
+    }
+    {
+        const std::string path = msg;
+        const size_t slash = path.rfind('/');
+        if(slash != std::string::npos && path.compare(slash, 9, "/efftype") == 0 &&
+           path.size() == slash + 8 && (args[0] == 'i' || args[0] == 'c')) {
+            const std::string node = path.substr(0, slash + 1);
+            if(isEffectNode(node)) {
+                gEffType[node] = rtosc_argument(msg, 0).i;
+                refreshEffect(node);
+            }
+            //no return: the pane may show this value too
+        }
     }
     if(!strcmp(msg, "/bank/bank_list")) {
         gBanks.clear();
@@ -1181,23 +1246,49 @@ HACCEL makeAccel()
 
 // ------------------------------------------------------------- the tree
 
+//! The groups of a node the tree shows: an effect slot shows only the
+//! settings of its current effect type
+std::vector<Node> shownChildren(const Node &n)
+{
+    std::vector<Node> all = children(n);
+    if(!isEffectNode(n.path))
+        return all;
+    auto t = gEffType.find(n.path);
+    if(t == gEffType.end())
+        return all; //not known yet: everything, until the type arrives
+    std::vector<Node> out;
+    for(const Node &c : all) {
+        std::string base = c.path.substr(n.path.size());
+        if(!base.empty() && base.back() == '/')
+            base.pop_back();
+        if(base == effectGroup(t->second) ||
+           (base == "filterpars" && t->second == kDynFilterType))
+            out.push_back(c);
+    }
+    return out;
+}
+
 HTREEITEM insertNode(HTREEITEM parent, const Node &n)
 {
     gNodes.push_back(n);
+    const std::wstring label = nodeLabel(n);
     TVINSERTSTRUCTW ins = {};
     ins.hParent      = parent;
     ins.hInsertAfter = TVI_LAST;
     ins.item.mask    = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
-    ins.item.pszText = (LPWSTR)gNodes.back().label.c_str();
+    ins.item.pszText = (LPWSTR)label.c_str();
     ins.item.lParam  = (LPARAM)(gNodes.size() - 1);
-    ins.item.cChildren = children(n).empty() ? 0 : 1;
+    ins.item.cChildren = shownChildren(n).empty() ? 0 : 1;
     HTREEITEM item =
         (HTREEITEM)SendMessageW(gTree, TVM_INSERTITEMW, 0, (LPARAM)&ins);
+    gItemByPath[n.path] = item;
     int part = -1;
     char rest[8] = "";
     if(sscanf(n.path.c_str(), "/part%d%7s", &part, rest) == 2 &&
        !strcmp(rest, "/") && part >= 0 && part < kParts)
         gPartItem[part] = item;
+    if(isEffectNode(n.path) && !gEffType.count(n.path))
+        request(n.path + "efftype");
     return item;
 }
 
@@ -1210,8 +1301,52 @@ void fillChildren(HTREEITEM item)
     it.hItem = item;
     TreeView_GetItem(gTree, &it);
     const Node n = gNodes[(size_t)it.lParam];
-    for(const Node &c : children(n))
+    for(const Node &c : shownChildren(n))
         insertNode(item, c);
+}
+
+//! An effect slot's type arrived or changed: its name and its groups
+void refreshEffect(const std::string &path)
+{
+    auto f = gItemByPath.find(path);
+    if(f == gItemByPath.end())
+        return;
+    HTREEITEM item = f->second;
+    TVITEMW it = {};
+    it.mask  = TVIF_PARAM;
+    it.hItem = item;
+    if(!TreeView_GetItem(gTree, &it))
+        return;
+    const Node n = gNodes[(size_t)it.lParam];
+    const std::wstring label = nodeLabel(n);
+    const bool hasKids = !shownChildren(n).empty();
+    it.mask      = TVIF_TEXT | TVIF_CHILDREN;
+    it.pszText   = (LPWSTR)label.c_str();
+    it.cChildren = hasKids ? 1 : 0;
+    SendMessageW(gTree, TVM_SETITEMW, 0, (LPARAM)&it);
+    if(TreeView_GetChild(gTree, item)) { //already open: its groups again
+        const bool open = TreeView_GetItemState(gTree, item, TVIS_EXPANDED) &
+                          TVIS_EXPANDED;
+        HTREEITEM sel = TreeView_GetSelection(gTree);
+        bool selInside = false;
+        for(HTREEITEM p = sel; p; p = TreeView_GetParent(gTree, p))
+            if(p == item && p != sel)
+                selInside = true;
+        if(selInside)
+            TreeView_SelectItem(gTree, item);
+        for(auto i = gItemByPath.begin(); i != gItemByPath.end();) {
+            if(i->first.size() > path.size() &&
+               i->first.compare(0, path.size(), path) == 0)
+                i = gItemByPath.erase(i);
+            else
+                ++i;
+        }
+        while(HTREEITEM c = TreeView_GetChild(gTree, item))
+            TreeView_DeleteItem(gTree, c);
+        fillChildren(item);
+        if(open && hasKids)
+            TreeView_Expand(gTree, item, TVE_EXPAND);
+    }
 }
 
 LRESULT onTreeNotify(NMHDR *h)

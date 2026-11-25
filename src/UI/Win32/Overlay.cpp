@@ -12,6 +12,8 @@
 #include "PortModel.h"
 
 #include <cctype>
+#include <cmath>
+#include <cwctype>
 #include <cstring>
 #include <map>
 #include <set>
@@ -99,7 +101,22 @@ static std::string firstLine(const std::string &doc)
 std::wstring paramLabel(const std::string &, const std::string &base,
                         const std::string &doc, const std::string &shortName)
 {
+    //names the descriptions do not give well
+    static const std::map<std::string, std::wstring> names = {
+        {"efftype",  L"Effect type"},
+        {"preset",   L"Effect preset"},
+        {"Pkeyshift", L"Key shift"},
+    };
+    auto it = names.find(base);
+    if(it != names.end())
+        return it->second;
+
     std::string s = firstLine(doc);
+    //"Panning of ADsynth (0 random, 1 left, 127 right)": the explanation
+    //stays in the description
+    size_t paren = s.find(" (");
+    if(paren != std::string::npos && paren > 3 && s.back() == ')')
+        s = s.substr(0, paren);
     if(s.empty() || s.size() > 60 || s == base)
         s = !shortName.empty() ? shortName : base;
     if(!s.empty())
@@ -148,8 +165,61 @@ void arrange(const std::string &, std::vector<Param> &params)
     params.swap(kept);
 }
 
-std::wstring formatValue(const Param &, double)
+static bool contains(const std::wstring &hay, const wchar_t *needle)
 {
+    std::wstring h = hay, n = needle;
+    for(auto &c : h) c = (wchar_t)towlower(c);
+    for(auto &c : n) c = (wchar_t)towlower(c);
+    return h.find(n) != std::wstring::npos;
+}
+
+static std::wstring percent(double v)
+{
+    return std::to_wstring((long long)std::lround(v)) + L" %";
+}
+
+//! MIDI note number as a name: 60 is C4
+static std::wstring noteName(int n)
+{
+    static const wchar_t *names[12] = {L"C", L"C sharp", L"D", L"D sharp",
+        L"E", L"F", L"F sharp", L"G", L"G sharp", L"A", L"A sharp", L"B"};
+    if(n < 0 || n > 127)
+        return std::to_wstring(n);
+    return std::wstring(names[n % 12]) + std::to_wstring(n / 12 - 1) +
+           L" (" + std::to_wstring(n) + L")";
+}
+
+std::wstring formatValue(const Param &p, double v)
+{
+    if(!p.options.empty() || p.type == 'T' || p.type == 's')
+        return std::wstring();
+    const int iv = (int)std::lround(v);
+    const bool int127 = p.type != 'f' && p.min == 0 && p.max == 127;
+
+    //Panning: 64 is the centre; some panners use 0 for "random"
+    if(int127 && contains(p.label + L" " + widen(p.name), L"pan")) {
+        if(iv == 0 && contains(p.doc, L"random"))
+            return L"random";
+        if(iv == 64)
+            return L"centre";
+        if(iv < 64)
+            return L"left " + percent((64 - v) * 100.0 / 64.0);
+        return L"right " + percent((v - 64) * 100.0 / 63.0);
+    }
+    //Fine detune: 8192 is no detune
+    if(p.type != 'f' && p.min == 0 && p.max == 16383 &&
+       contains(widen(p.name), L"detune")) {
+        const int d = iv - 8192;
+        return d == 0 ? L"0, none" : (d > 0 ? L"+" : L"") + std::to_wstring(d);
+    }
+    //Key ranges
+    if(int127 && (p.name == "Pminkey" || p.name == "Pmaxkey"))
+        return noteName(iv);
+    //Key shift stored as 64 + semitones
+    if(int127 && p.name == "Pkeyshift") {
+        const int d = iv - 64;
+        return (d > 0 ? L"+" : L"") + std::to_wstring(d) + L" semitones";
+    }
     return std::wstring();
 }
 
