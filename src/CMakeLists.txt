@@ -78,7 +78,11 @@ CHECK_CXX_SOURCE_COMPILES(
 # The graphical FLTK, NTK and Zyn-Fusion (zest) interfaces were removed:
 # the only user interface is the accessible Win32 one (GuiModule win32,
 # added with the UI itself) or none (off).
-SET (GuiModule off CACHE STRING "GUI module: off")
+if(WIN32)
+    SET (GuiModule win32 CACHE STRING "GUI module: win32 (accessible) or off")
+else()
+    SET (GuiModule off CACHE STRING "GUI module: off")
+endif()
 SET (CompileTests ON CACHE BOOL "whether tests should be compiled in or not")
 SET (CompileExtensiveTests OFF CACHE BOOL "whether tests that take a long time should be compiled in or not")
 SET (AlsaEnable ${ALSA_FOUND} CACHE BOOL
@@ -191,11 +195,16 @@ endif()
 
 
 
-if(NOT GuiModule STREQUAL off)
+if(GuiModule STREQUAL win32 AND WIN32)
+    set(Win32Gui TRUE)
+    add_definitions(-DWIN32_UI=1)
+elseif(NOT GuiModule STREQUAL off)
     message(STATUS "GUI module \"${GuiModule}\" is not available, using off")
     set (GuiModule off CACHE STRING "GUI module: off" FORCE)
 endif()
-add_definitions(-DDISABLE_GUI)
+if(NOT Win32Gui)
+    add_definitions(-DDISABLE_GUI)
+endif()
 
 
 #Build Flags
@@ -431,10 +440,28 @@ if(NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Windows"))
 endif()
 
 
-# No user interface: stubs, plus the (non-graphical) NSM session client
+# No user interface: stubs, plus the (non-graphical) NSM session client.
+# The tests link this one.
 add_library(zynaddsubfx_gui_bridge STATIC UI/ConnectionDummy.cpp
     UI/NSM.C UI/NSM/Client.C)
 add_definitions(-DNO_UI=1)
+
+# The accessible Windows interface (standard Win32 controls)
+if(Win32Gui)
+    add_library(zynaddsubfx_win32_ui STATIC
+        UI/Win32/Win32Ui.cpp
+        UI/Win32/PortModel.cpp
+        UI/Win32/Overlay.cpp
+        UI/Win32/Access.cpp
+        UI/NSM.C UI/NSM/Client.C)
+    target_link_libraries(zynaddsubfx_win32_ui comctl32 comdlg32 oleacc
+        uiautomationcore ole32 oleaut32 shell32)
+    set(UI_BRIDGE zynaddsubfx_win32_ui)
+    set(UI_RESOURCES UI/Win32/zynui.rc UI/Win32/zynui.manifest)
+else()
+    set(UI_BRIDGE zynaddsubfx_gui_bridge)
+    set(UI_RESOURCES)
+endif()
 
 ########### General section ##############
 # Following this should be only general compilation code, and no mention
@@ -544,7 +571,12 @@ if(CompileTests)
 endif(CompileTests)
 
 
-add_executable(zynaddsubfx main.cpp)
+add_executable(zynaddsubfx main.cpp ${UI_RESOURCES})
+if(Win32Gui)
+    # a window, not a console; main() stays the entry point
+    set_target_properties(zynaddsubfx PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_link_options(zynaddsubfx PRIVATE /ENTRY:mainCRTStartup)
+endif()
 
 if(Werror)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -565,7 +597,7 @@ endif()
 target_link_libraries(zynaddsubfx
 	zynaddsubfx_core
 	zynaddsubfx_nio
-	zynaddsubfx_gui_bridge
+	${UI_BRIDGE}
 	${GUI_LIBRARIES}
 	${NIO_LIBRARIES}
 	${AUDIO_LIBRARIES}

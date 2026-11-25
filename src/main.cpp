@@ -142,6 +142,14 @@ void exitprogram(Config& config)
 
 int main(int argc, char *argv[])
 {
+#if defined(WIN32) && defined(WIN32_UI)
+    //A windowed program has no console. Started from one, write to it.
+    if(AttachConsole(ATTACH_PARENT_PROCESS)) {
+        FILE *f;
+        freopen_s(&f, "CONOUT$", "w", stdout);
+        freopen_s(&f, "CONOUT$", "w", stderr);
+    }
+#endif
     SYNTH_T synth;
     Config config;
     int noui = 0;
@@ -662,10 +670,11 @@ done:
 #endif
         GUI::tickUi(gui);
 #endif // !WIN32
-        middleware->tick();
 #ifdef WIN32
-        Sleep(1);
+        //runs the window's messages, then waits up to 1 ms for more
+        GUI::tickUi(gui);
 #endif
+        middleware->tick();
 
     } // while !Pexitprogram
 
