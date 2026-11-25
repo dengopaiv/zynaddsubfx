@@ -235,6 +235,33 @@ std::vector<Param> params(const Node &n)
     return out;
 }
 
+std::vector<std::pair<int, std::wstring>>
+groupPortOptions(const Node &n, const std::string &group, const std::string &port)
+{
+    std::vector<std::pair<int, std::wstring>> out;
+    if(!n.ports || group.empty())
+        return out;
+    for(const rtosc::Port &g : n.ports->ports) {
+        std::string base, args;
+        int count;
+        splitName(g.name, base, count, args);
+        if(!g.ports || base != group)
+            continue;
+        for(const rtosc::Port &p : g.ports->ports) {
+            std::string pb, pa;
+            int pc;
+            splitName(p.name, pb, pc, pa);
+            if(pb != port)
+                continue;
+            for(auto m : p.meta())
+                if(m.title && !strncmp(m.title, "map ", 4) && m.value)
+                    out.emplace_back(atoi(m.title + 4), widen(m.value));
+            return out;
+        }
+    }
+    return out;
+}
+
 int partOfPath(const std::string &path)
 {
     if(path.compare(0, 5, "/part") != 0)

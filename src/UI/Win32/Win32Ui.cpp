@@ -425,11 +425,45 @@ Ctl *addControl(const Param &p, Kind kind, int id);
 
 void buildPane(const Node &n, const std::wstring &title)
 {
+    //the same pane built again (its effect type changed): keep the focus
+    std::string focusPath;
+    if(n.path == gPaneNode.path) {
+        HWND f = GetFocus();
+        if(f && !gByHwnd.count(f) && GetParent(f))
+            f = GetParent(f); //the edit part of a combo box
+        auto fc = gByHwnd.find(f);
+        if(fc != gByHwnd.end())
+            focusPath = fc->second->p.path;
+    }
+
     SendMessageW(gCanvas, WM_SETREDRAW, FALSE, 0);
     clearPane();
     gPaneNode = n;
 
     std::vector<Param> ps = params(n);
+    if(isEffectNode(n.path)) {
+        //an effect slot's preset: the names its current effect type gives
+        auto t = gEffType.find(n.path);
+        for(size_t i = 0; i < ps.size(); ++i) {
+            if(ps[i].name != "preset")
+                continue;
+            if(t == gEffType.end())
+                break; //type not known yet: a plain number until it arrives
+            auto names = groupPortOptions(n, effectGroup(t->second), "preset");
+            if(names.empty()) {
+                ps.erase(ps.begin() + i); //off, or a type without presets
+                break;
+            }
+            ps[i].options = names;
+            ps[i].min     = names.front().first;
+            ps[i].max     = names.back().first;
+            ps[i].label   = effectName(t->second) + L" preset";
+            //the effect type's own port: it answers when asked, the slot's
+            //does not (so loaded files show their preset)
+            ps[i].path    = n.path + effectGroup(t->second) + "/preset";
+            break;
+        }
+    }
     std::wstring head = title;
     if(ps.empty())
         head += L": no settings of its own. Open it in the tree to see its parts.";
@@ -478,6 +512,13 @@ void buildPane(const Node &n, const std::wstring &title)
     for(auto &c : gCtls)
         if(c->kind != K_BUTTON && c->kind != K_INDEX)
             request(c->p.path);
+
+    if(!focusPath.empty())
+        for(auto &c : gCtls)
+            if(c->p.path == focusPath) {
+                SetFocus(c->ctl);
+                break;
+            }
 }
 
 Ctl *addControl(const Param &p, Kind kind, int id)
@@ -1120,8 +1161,20 @@ void handleSideMessage(const char *msg, const char *args)
            path.size() == slash + 8 && (args[0] == 'i' || args[0] == 'c')) {
             const std::string node = path.substr(0, slash + 1);
             if(isEffectNode(node)) {
-                gEffType[node] = rtosc_argument(msg, 0).i;
-                refreshEffect(node);
+                const int type = rtosc_argument(msg, 0).i;
+                auto known = gEffType.find(node);
+                //only a new or changed type: the pane's own request for
+                //efftype must not rebuild the pane, which requests it again
+                if(known == gEffType.end() || known->second != type) {
+                    gEffType[node] = type;
+                    refreshEffect(node);
+                    if(gPaneNode.path == node) {
+                        auto item = gItemByPath.find(node);
+                        buildPane(gPaneNode, item != gItemByPath.end()
+                                                 ? nodeTitle(item->second)
+                                                 : nodeLabel(gPaneNode));
+                    }
+                }
             }
             //no return: the pane may show this value too
         }

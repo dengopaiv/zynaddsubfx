@@ -63,6 +63,11 @@ std::vector<Node> children(const Node &n);
 //! The parameters directly in @p n
 std::vector<Param> params(const Node &n);
 
+//! The named choices of port @p port inside group @p group of @p n
+//! (e.g. the presets of an effect slot's current effect type); empty if none
+std::vector<std::pair<int, std::wstring>>
+groupPortOptions(const Node &n, const std::string &group, const std::string &port);
+
 //! The part a path belongs to (0 for "/part0/..."), or -1
 int partOfPath(const std::string &path);
 

@@ -164,6 +164,10 @@ void arrange(const std::string &, std::vector<Param> &params)
     for(Param &p : params) {
         if(count[p.label] > 1 && floats[p.label] > 0 && p.type != 'f')
             continue;
+        //EffectMgr's "parameter#128": numbered aliases of the effect's own
+        //named settings, which the effect type's group shows
+        if(p.name == "parameter" && p.count > 0)
+            continue;
         kept.push_back(p);
     }
     //Still the same name: different parameters with one description
