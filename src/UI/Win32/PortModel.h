@@ -52,7 +52,23 @@ struct Node {
     std::string        path;   //!< "/part0/kit0/adpars/", root "/"
     const rtosc::Ports *ports = nullptr;
     std::wstring       label;  //!< "Part 1", "AddSynth", "Voice 3" ...
+    //! A section of a large group ("Punch" of PADsynth): the same path and
+    //! ports, showing only that section's settings. Empty for the whole group.
+    std::wstring       section;
 };
+
+//! A named part of a large group's settings
+struct Section {
+    std::wstring       label;
+    std::vector<Param> params;
+};
+
+//! The sections of @p n's settings, in order; empty when the group is small
+//! enough to show whole (or is itself a section)
+std::vector<Section> sections(const Node &n);
+
+//! Every setting of @p n, even when it is a section: the whole group's
+std::vector<Param> allParams(const Node &n);
 
 //! The root: everything the engine and MiddleWare expose
 Node rootNode();

@@ -42,6 +42,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cwctype>
 #include <cstdarg>
 #include <deque>
 #include <map>
@@ -70,7 +71,8 @@ int   gScrollY = 0, gCanvasH = 0;
 std::deque<Node> gNodes; //tree items point into this (lParam = index)
 Node             gPaneNode;
 
-enum Kind { K_SLIDER, K_COMBO, K_CHECK, K_EDIT, K_MEMO, K_BUTTON, K_INDEX };
+enum Kind { K_SLIDER, K_COMBO, K_CHECK, K_EDIT, K_MEMO, K_BUTTON, K_INDEX,
+            K_HEADING };
 
 struct Ctl {
     Param  p;
@@ -95,8 +97,17 @@ HTREEITEM    gPartItem[kParts]    = {};
 std::wstring gPartName[kParts];
 bool         gPartEnabled[kParts] = {true};
 
-//Every tree item by its node's path
+//Every tree item by its node's key (nodeKey)
 std::map<std::string, HTREEITEM> gItemByPath;
+
+//! A node's identity: its path, and the section for a section of a group
+std::string nodeKey(const Node &n)
+{
+    return n.section.empty() ? n.path : n.path + "\x01" + narrow(n.section);
+}
+
+//The control last focused in each group (by node key): its path
+std::map<std::string, std::string> gFocusMemo;
 
 //Effect slots: their current effect type (EffectMgr's efftype)
 std::map<std::string, int> gEffType;
@@ -162,7 +173,8 @@ std::map<WPARAM, std::pair<int, int>> gHeld; //key -> channel, note
 enum {
     IDM_NEW = 40001, IDM_OPEN, IDM_SAVE, IDM_OPEN_INSTR, IDM_SAVE_INSTR,
     IDM_EXIT, IDM_UNDO, IDM_REDO, IDM_SETTINGS, IDM_HELP_KEYS, IDM_ABOUT,
-    IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY,
+    IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY, IDM_PREV_GROUP,
+    IDM_NEXT_GROUP, IDM_FIND, IDM_NEXT_SECTION, IDM_PREV_SECTION,
 };
 
 int px(int v) { return MulDiv(v, (int)gDpi, 96); }
@@ -414,7 +426,9 @@ std::wstring nodeTitle(HTREEITEM item)
         it.hItem      = item;
         it.pszText    = buf;
         it.cchTextMax = 256;
-        TreeView_GetItem(gTree, &it);
+        //TVM_GETITEMW itself: the TreeView_GetItem macro asks for ANSI text
+        //in a build without UNICODE defined
+        SendMessageW(gTree, TVM_GETITEMW, 0, (LPARAM)&it);
         t     = t.empty() ? std::wstring(buf) : std::wstring(buf) + L", " + t;
         item  = TreeView_GetParent(gTree, item);
     }
@@ -423,17 +437,56 @@ std::wstring nodeTitle(HTREEITEM item)
 
 Ctl *addControl(const Param &p, Kind kind, int id);
 
+//! A control's identity within its group: its path below the group's (an
+//! array's value control by the array, whichever element it shows). The same
+//! setting of another voice or part has the same key.
+std::string ctlKey(const Ctl &c)
+{
+    const std::string p  = c.base.empty() ? c.p.path : c.base;
+    const std::string &np = gPaneNode.path;
+    return p.compare(0, np.size(), np) == 0 ? p.substr(np.size()) : p;
+}
+
+Ctl *findCtl(const std::string &key)
+{
+    for(auto &c : gCtls)
+        if(c->kind != K_HEADING && ctlKey(*c) == key)
+            return c.get();
+    return nullptr;
+}
+
+Ctl *firstCtl()
+{
+    for(auto &c : gCtls)
+        if(c->kind != K_HEADING)
+            return c.get();
+    return nullptr;
+}
+
+//! Into the pane: the control last used in this group, else the first
+bool focusPane()
+{
+    auto m = gFocusMemo.find(nodeKey(gPaneNode));
+    Ctl *c = m != gFocusMemo.end() ? findCtl(m->second) : nullptr;
+    if(!c)
+        c = firstCtl();
+    if(!c)
+        return false;
+    SetFocus(c->ctl);
+    return true;
+}
+
 void buildPane(const Node &n, const std::wstring &title)
 {
     //the same pane built again (its effect type changed): keep the focus
     std::string focusPath;
-    if(n.path == gPaneNode.path) {
+    if(nodeKey(n) == nodeKey(gPaneNode)) {
         HWND f = GetFocus();
         if(f && !gByHwnd.count(f) && GetParent(f))
             f = GetParent(f); //the edit part of a combo box
         auto fc = gByHwnd.find(f);
         if(fc != gByHwnd.end())
-            focusPath = fc->second->p.path;
+            focusPath = ctlKey(*fc->second);
     }
 
     SendMessageW(gCanvas, WM_SETREDRAW, FALSE, 0);
@@ -464,13 +517,42 @@ void buildPane(const Node &n, const std::wstring &title)
             break;
         }
     }
+    //a large group shown whole: its settings under section headings
+    //(Ctrl+Down and Ctrl+Up jump between them); the sections are also the
+    //group's first children in the tree
+    std::vector<Section> secs;
+    if(n.section.empty() && !isEffectNode(n.path))
+        secs = sections(n);
+    struct Item { bool heading; std::wstring label; Param p; };
+    std::vector<Item> items;
+    if(!secs.empty()) {
+        for(Section &sec : secs) {
+            items.push_back({true, sec.label, Param()});
+            for(Param &p : sec.params)
+                items.push_back({false, L"", p});
+        }
+    } else
+        for(Param &p : ps)
+            items.push_back({false, L"", p});
+
     std::wstring head = title;
     if(ps.empty())
         head += L": no settings of its own. Open it in the tree to see its parts.";
+    else if(!secs.empty())
+        head += L": " + std::to_wstring(secs.size()) + L" sections. Ctrl+Down "
+                L"and Ctrl+Up jump between them; they are also in the tree.";
     makeChild(L"STATIC", head.c_str(), SS_LEFT | SS_NOPREFIX, -1);
 
     int id = kFirstCtlId;
-    for(Param &p : ps) {
+    for(Item &item : items) {
+        if(item.heading) {
+            Param hp;
+            hp.label = item.label;
+            hp.path  = "#section:" + narrow(item.label);
+            addControl(hp, K_HEADING, -1);
+            continue;
+        }
+        Param &p = item.p;
         if(p.count > 0) {
             //an array: which element, then its value
             Param ip;
@@ -510,15 +592,12 @@ void buildPane(const Node &n, const std::wstring &title)
     InvalidateRect(gCanvas, nullptr, TRUE);
 
     for(auto &c : gCtls)
-        if(c->kind != K_BUTTON && c->kind != K_INDEX)
+        if(c->kind != K_BUTTON && c->kind != K_INDEX && c->kind != K_HEADING)
             request(c->p.path);
 
     if(!focusPath.empty())
-        for(auto &c : gCtls)
-            if(c->p.path == focusPath) {
-                SetFocus(c->ctl);
-                break;
-            }
+        if(Ctl *c = findCtl(focusPath))
+            SetFocus(c->ctl);
 }
 
 Ctl *addControl(const Param &p, Kind kind, int id)
@@ -526,6 +605,14 @@ Ctl *addControl(const Param &p, Kind kind, int id)
     auto c  = std::make_unique<Ctl>();
     c->p    = p;
     c->kind = kind;
+    if(kind == K_HEADING) {
+        //a section heading: text only, never focused
+        c->ctl = makeChild(L"STATIC", (L"Section: " + p.label).c_str(),
+                           SS_LEFT | SS_NOPREFIX, -1);
+        Ctl *raw = c.get();
+        gCtls.push_back(std::move(c));
+        return raw;
+    }
     if(kind != K_CHECK && kind != K_BUTTON)
         c->label = makeChild(L"STATIC", (p.label + L":").c_str(),
                              SS_LEFT | SS_NOPREFIX, -1);
@@ -628,7 +715,10 @@ void layoutCanvas()
         }
     }
     for(auto &c : gCtls) {
-        if(c->kind == K_CHECK || c->kind == K_BUTTON) {
+        if(c->kind == K_HEADING) {
+            y += px(6);
+            MoveWindow(c->ctl, margin, y, w - 2 * margin, px(22), FALSE);
+        } else if(c->kind == K_CHECK || c->kind == K_BUTTON) {
             MoveWindow(c->ctl, margin, y, w - 2 * margin, px(24), FALSE);
         } else if(c->kind == K_MEMO) {
             MoveWindow(c->label, margin, y + px(3), w - 2 * margin, px(20), FALSE);
@@ -675,6 +765,10 @@ void followFocus()
         return;
     while(GetParent(f) != gCanvas) //the edit part of a combo box
         f = GetParent(f);
+    //remember it: F6 and returning to this group come back here
+    auto known = gByHwnd.find(f);
+    if(known != gByHwnd.end())
+        gFocusMemo[nodeKey(gPaneNode)] = ctlKey(*known->second);
     RECT r, vr;
     GetWindowRect(f, &r);
     MapWindowPoints(nullptr, gCanvas, (POINT *)&r, 2);
@@ -1219,6 +1313,322 @@ void handleSideMessage(const char *msg, const char *args)
     }
 }
 
+// ------------------------------------------------------- navigation
+
+void fillChildren(HTREEITEM item);
+std::vector<Node> shownChildren(const Node &n);
+
+const Node &itemNode(HTREEITEM item)
+{
+    TVITEMW it = {};
+    it.mask  = TVIF_PARAM;
+    it.hItem = item;
+    TreeView_GetItem(gTree, &it);
+    return gNodes[(size_t)it.lParam];
+}
+
+//! The tree item of a group (opening the groups above it as needed), or null
+HTREEITEM findItem(const std::string &path, const std::wstring &section)
+{
+    HTREEITEM item = TreeView_GetRoot(gTree);
+    while(item) {
+        const Node &n = itemNode(item);
+        if(n.path == path && n.section == section)
+            return item;
+        fillChildren(item);
+        HTREEITEM next = nullptr;
+        for(HTREEITEM c = TreeView_GetChild(gTree, item); c;
+            c = TreeView_GetNextSibling(gTree, c)) {
+            const Node &cn = itemNode(c);
+            if(cn.path == path && cn.section == section)
+                return c;
+            //a group above the one wanted, or the group whose section is
+            //wanted: look inside
+            if(!next && cn.section.empty() &&
+               path.compare(0, cn.path.size(), cn.path) == 0 &&
+               (cn.path.size() < path.size() || !section.empty()))
+                next = c;
+        }
+        item = next;
+    }
+    return nullptr;
+}
+
+//! Choose a group in the tree; with @p focusKey, focus that setting in its
+//! pane (or the remembered one, or the first)
+void goToGroup(HTREEITEM item, bool intoPane, const std::string &focusKey)
+{
+    TreeView_SelectItem(gTree, item); //builds its pane
+    TreeView_EnsureVisible(gTree, item);
+    if(!intoPane)
+        return;
+    Ctl *c = focusKey.empty() ? nullptr : findCtl(focusKey);
+    if(c)
+        SetFocus(c->ctl);
+    else if(!focusPane())
+        SetFocus(gTree);
+    access::announce(nodeTitle(item));
+}
+
+//! The same group of the previous or next voice, part, kit item, effect
+//! slot ...: the numbered level deepest in the current group's path changes
+std::string siblingPath(const std::string &path, int dir)
+{
+    std::vector<std::string> segs;
+    size_t start = 1;
+    while(start < path.size()) {
+        size_t e = path.find('/', start);
+        if(e == std::string::npos)
+            e = path.size();
+        segs.push_back(path.substr(start, e - start));
+        start = e + 1;
+    }
+    for(int i = (int)segs.size() - 1; i >= 0; --i) {
+        std::string &s = segs[i];
+        size_t d = s.size();
+        while(d > 0 && isdigit((unsigned char)s[d - 1]))
+            --d;
+        if(d == s.size() || d == 0)
+            continue;
+        const int n = atoi(s.c_str() + d) + dir;
+        if(n < 0)
+            return std::string();
+        s = s.substr(0, d) + std::to_string(n);
+        std::string out = "/";
+        for(auto &x : segs)
+            out += x + "/";
+        return out;
+    }
+    return std::string();
+}
+
+void siblingGroup(int dir)
+{
+    const std::string target = siblingPath(gPaneNode.path, dir);
+    HTREEITEM item = target.empty() ? nullptr
+                                    : findItem(target, gPaneNode.section);
+    if(!item) {
+        say(dir > 0 ? L"No next group of this kind"
+                    : L"No previous group of this kind");
+        return;
+    }
+    //the setting focused here, focused again there
+    HWND f = GetFocus();
+    if(f && !gByHwnd.count(f) && GetParent(f))
+        f = GetParent(f);
+    auto c = gByHwnd.find(f);
+    const bool inPane = c != gByHwnd.end();
+    const std::string key = inPane ? ctlKey(*c->second) : std::string();
+    goToGroup(item, inPane, key);
+}
+
+//! Ctrl+Down, Ctrl+Up in a pane with section headings
+bool jumpSection(int dir)
+{
+    int at = -1, n = (int)gCtls.size();
+    HWND f = GetFocus();
+    if(f && !gByHwnd.count(f) && GetParent(f))
+        f = GetParent(f);
+    for(int i = 0; i < n; ++i)
+        if(gCtls[i]->ctl == f)
+            at = i;
+    std::vector<int> heads;
+    for(int i = 0; i < n; ++i)
+        if(gCtls[i]->kind == K_HEADING)
+            heads.push_back(i);
+    if(heads.empty() || at < 0)
+        return false;
+    int cur = -1; //the section the focus is in
+    for(size_t h = 0; h < heads.size(); ++h)
+        if(heads[h] < at)
+            cur = (int)h;
+    int target;
+    if(dir > 0)
+        target = cur + 1;
+    else //to the start of this section, or of the previous one from its start
+        target = (cur >= 0 && at > heads[cur] + 1) ? cur : cur - 1;
+    if(target < 0 || target >= (int)heads.size()) {
+        say(dir > 0 ? L"Last section" : L"First section");
+        return true;
+    }
+    for(int i = heads[target] + 1; i < n; ++i)
+        if(gCtls[i]->kind != K_HEADING) {
+            SetFocus(gCtls[i]->ctl);
+            access::announce(L"Section " + gCtls[heads[target]]->p.label);
+            return true;
+        }
+    return true;
+}
+
+// -------------------------------------------------- find a setting
+
+struct FindEntry {
+    Node         node;   //the group (or section) holding the setting
+    std::string  key;    //the setting's key in its pane (ctlKey)
+    std::wstring text;   //"Fine detune, in Part 1, Kit item 1, ..."
+    std::wstring lower;  //for matching
+};
+std::vector<FindEntry> gFindIndex;
+std::vector<int>       gFindShown;
+
+std::wstring lowered(std::wstring s)
+{
+    for(auto &c : s)
+        c = (wchar_t)towlower(c);
+    return s;
+}
+
+//! Every setting below @p n, in the current part's current kit item only
+//! (the other parts and kit items have the same settings)
+void collectSettings(const Node &n, const std::wstring &where, int part,
+                     int kit, int depth)
+{
+    if(depth > 14)
+        return;
+    auto add = [&](const Node &holder, const std::wstring &place,
+                   const Param &p) {
+        FindEntry e;
+        e.node = holder;
+        const std::string path = p.path;
+        e.key  = path.compare(0, holder.path.size(), holder.path) == 0
+                     ? path.substr(holder.path.size()) : path;
+        if(p.count > 0)
+            e.key = p.path.substr(holder.path.size()); //the array itself
+        e.text  = p.label + L", in " + place;
+        e.lower = lowered(e.text + L" " + p.doc);
+        gFindIndex.push_back(e);
+    };
+    std::vector<Section> secs = isEffectNode(n.path) ? std::vector<Section>()
+                                                      : sections(n);
+    if(!secs.empty()) {
+        for(const Section &s : secs) {
+            Node holder    = n;
+            holder.section = s.label;
+            for(const Param &p : s.params)
+                add(holder, where + L", " + s.label, p);
+        }
+    } else
+        for(const Param &p : params(n))
+            add(n, where, p);
+
+    for(const Node &c : shownChildren(n)) {
+        if(!c.section.empty())
+            continue; //sections were covered above
+        int cp = -1, ck = -1;
+        char rest[16] = "";
+        if(sscanf(c.path.c_str(), "/part%d/%15s", &cp, rest) >= 1 && cp != part)
+            continue;
+        if(sscanf(c.path.c_str(), "/part%*d/kit%d/", &ck) == 1 && ck != kit)
+            continue;
+        collectSettings(c, depth == 0 ? c.label : where + L", " + c.label,
+                        part, kit, depth + 1);
+    }
+}
+
+void refillFind(HWND dlg)
+{
+    wchar_t buf[256] = L"";
+    GetDlgItemTextW(dlg, IDC_FIND_EDIT, buf, 256);
+    std::vector<std::wstring> words;
+    std::wstring w, all = lowered(buf) + L" ";
+    for(wchar_t c : all) {
+        if(c == L' ') {
+            if(!w.empty())
+                words.push_back(w);
+            w.clear();
+        } else
+            w += c;
+    }
+    HWND l = GetDlgItem(dlg, IDC_FIND_LIST);
+    SendMessageW(l, WM_SETREDRAW, FALSE, 0);
+    SendMessageW(l, LB_RESETCONTENT, 0, 0);
+    gFindShown.clear();
+    constexpr size_t kMax = 300;
+    size_t found = 0;
+    if(!words.empty())
+        for(size_t i = 0; i < gFindIndex.size(); ++i) {
+            bool ok = true;
+            for(auto &x : words)
+                if(gFindIndex[i].lower.find(x) == std::wstring::npos)
+                    ok = false;
+            if(!ok)
+                continue;
+            ++found;
+            if(gFindShown.size() < kMax) {
+                gFindShown.push_back((int)i);
+                SendMessageW(l, LB_ADDSTRING, 0,
+                             (LPARAM)gFindIndex[i].text.c_str());
+            }
+        }
+    SendMessageW(l, LB_SETCURSEL, 0, 0);
+    SendMessageW(l, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(l, nullptr, TRUE);
+    std::wstring count = words.empty() ? L"Type to search."
+        : found == 0 ? L"Nothing found."
+        : std::to_wstring(found) + (found == 1 ? L" setting found" : L" settings found") +
+          (found > kMax ? L", the first " + std::to_wstring(kMax) + L" shown." : L".");
+    SetDlgItemTextW(dlg, IDC_FIND_COUNT, count.c_str());
+}
+
+INT_PTR CALLBACK findProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch(msg) {
+        case WM_INITDIALOG:
+            SetWindowLongPtrW(dlg, DWLP_USER, lp);
+            refillFind(dlg);
+            SetFocus(GetDlgItem(dlg, IDC_FIND_EDIT));
+            return FALSE;
+        case WM_COMMAND:
+            if(LOWORD(wp) == IDC_FIND_EDIT && HIWORD(wp) == EN_CHANGE) {
+                refillFind(dlg);
+                return TRUE;
+            }
+            if(LOWORD(wp) == IDOK ||
+               (LOWORD(wp) == IDC_FIND_LIST && HIWORD(wp) == LBN_DBLCLK)) {
+                int sel = (int)SendDlgItemMessageW(dlg, IDC_FIND_LIST,
+                                                   LB_GETCURSEL, 0, 0);
+                if(sel < 0 || sel >= (int)gFindShown.size()) {
+                    MessageBoxW(dlg, L"Type part of a setting's name, then "
+                                L"choose it in the list.", L"Find a setting",
+                                MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
+                *(int *)GetWindowLongPtrW(dlg, DWLP_USER) = gFindShown[sel];
+                EndDialog(dlg, IDOK);
+                return TRUE;
+            }
+            if(LOWORD(wp) == IDCANCEL) {
+                EndDialog(dlg, IDCANCEL);
+                return TRUE;
+            }
+            break;
+    }
+    return FALSE;
+}
+
+void findSetting()
+{
+    //settings of the master, the effects, and the current part's current
+    //kit item
+    const int part = currentPart();
+    int kit = 0;
+    sscanf(gPaneNode.path.c_str(), "/part%*d/kit%d/", &kit);
+    gFindIndex.clear();
+    collectSettings(rootNode(), L"Master", part, kit, 0);
+
+    int chosen = -1;
+    if(DialogBoxParamW(gInst, MAKEINTRESOURCEW(IDD_FIND), gMain, findProc,
+                       (LPARAM)&chosen) != IDOK || chosen < 0)
+        return;
+    const FindEntry e = gFindIndex[chosen];
+    HTREEITEM item = findItem(e.node.path, e.node.section);
+    if(!item) {
+        say(L"That group is not in the tree now");
+        return;
+    }
+    goToGroup(item, true, e.key);
+}
+
 const wchar_t *kHelp =
     L"Keys\n\n"
     L"F6: move between the tree and the settings of the selected group.\n"
@@ -1316,10 +1726,9 @@ void command(int id)
         case IDM_SWITCH_PANE: {
             HWND f = GetFocus();
             if(f == gTree || !IsChild(gCanvas, f)) {
-                if(!gCtls.empty()) {
-                    SetFocus(gCtls.front()->ctl);
+                if(focusPane())
                     access::announce(nodeTitle(TreeView_GetSelection(gTree)));
-                } else
+                else
                     say(L"No settings here");
             } else
                 SetFocus(gTree);
@@ -1327,6 +1736,18 @@ void command(int id)
         }
         case IDM_FOCUS_TREE:
             SetFocus(gTree);
+            break;
+        case IDM_PREV_GROUP:
+        case IDM_NEXT_GROUP:
+            siblingGroup(id == IDM_NEXT_GROUP ? 1 : -1);
+            break;
+        case IDM_FIND:
+            findSetting();
+            break;
+        case IDM_NEXT_SECTION:
+        case IDM_PREV_SECTION:
+            if(!jumpSection(id == IDM_NEXT_SECTION ? 1 : -1))
+                say(L"No sections here");
             break;
         case IDM_BANK:
             openBanks();
@@ -1340,7 +1761,8 @@ void command(int id)
 HMENU makeMenu()
 {
     HMENU bar = CreateMenu(), file = CreatePopupMenu(), edit = CreatePopupMenu(),
-          opts = CreatePopupMenu(), help = CreatePopupMenu();
+          opts = CreatePopupMenu(), help = CreatePopupMenu(),
+          go = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, IDM_NEW, L"&New\tCtrl+N");
     AppendMenuW(file, MF_STRING, IDM_OPEN, L"&Open...\tCtrl+O");
     AppendMenuW(file, MF_STRING, IDM_SAVE, L"&Save as...\tCtrl+S");
@@ -1354,6 +1776,20 @@ HMENU makeMenu()
     AppendMenuW(file, MF_STRING, IDM_EXIT, L"E&xit\tAlt+F4");
     AppendMenuW(edit, MF_STRING, IDM_UNDO, L"&Undo\tCtrl+Z");
     AppendMenuW(edit, MF_STRING, IDM_REDO, L"&Redo\tCtrl+Y");
+    AppendMenuW(edit, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(edit, MF_STRING, IDM_FIND, L"&Find a setting...\tCtrl+F");
+    AppendMenuW(go, MF_STRING, IDM_SWITCH_PANE,
+                L"&Tree or settings\tF6");
+    AppendMenuW(go, MF_STRING, IDM_PREV_GROUP,
+                L"&Previous group of the same kind\tAlt+Left");
+    AppendMenuW(go, MF_STRING, IDM_NEXT_GROUP,
+                L"&Next group of the same kind\tAlt+Right");
+    //Ctrl+Down and Ctrl+Up are keys of the settings themselves (handleKey),
+    //so they are only shown here, not accelerators
+    AppendMenuW(go, MF_STRING, IDM_NEXT_SECTION,
+                L"Ne&xt section of the settings\tCtrl+Down");
+    AppendMenuW(go, MF_STRING, IDM_PREV_SECTION,
+                L"Pre&vious section of the settings\tCtrl+Up");
     AppendMenuW(opts, MF_STRING, IDM_PLAY,
                 L"&Play from computer keyboard...\tCtrl+K");
     AppendMenuW(opts, MF_STRING, IDM_SETTINGS, L"&Audio and MIDI...\tCtrl+Comma");
@@ -1361,6 +1797,7 @@ HMENU makeMenu()
     AppendMenuW(help, MF_STRING, IDM_ABOUT, L"&About");
     AppendMenuW(bar, MF_POPUP, (UINT_PTR)file, L"&File");
     AppendMenuW(bar, MF_POPUP, (UINT_PTR)edit, L"&Edit");
+    AppendMenuW(bar, MF_POPUP, (UINT_PTR)go, L"&Go");
     AppendMenuW(bar, MF_POPUP, (UINT_PTR)opts, L"&Options");
     AppendMenuW(bar, MF_POPUP, (UINT_PTR)help, L"&Help");
     return bar;
@@ -1382,6 +1819,9 @@ HACCEL makeAccel()
         {FVIRTKEY, VK_F1, IDM_HELP_KEYS},
         {FVIRTKEY, VK_F6, IDM_SWITCH_PANE},
         {FSHIFT | FVIRTKEY, VK_F6, IDM_SWITCH_PANE},
+        {FALT | FVIRTKEY, VK_LEFT, IDM_PREV_GROUP},
+        {FALT | FVIRTKEY, VK_RIGHT, IDM_NEXT_GROUP},
+        {FCONTROL | FVIRTKEY, 'F', IDM_FIND},
     };
     return CreateAcceleratorTableW(a, sizeof(a) / sizeof(a[0]));
 }
@@ -1423,7 +1863,7 @@ HTREEITEM insertNode(HTREEITEM parent, const Node &n)
     ins.item.cChildren = shownChildren(n).empty() ? 0 : 1;
     HTREEITEM item =
         (HTREEITEM)SendMessageW(gTree, TVM_INSERTITEMW, 0, (LPARAM)&ins);
-    gItemByPath[n.path] = item;
+    gItemByPath[nodeKey(n)] = item;
     int part = -1;
     char rest[8] = "";
     if(sscanf(n.path.c_str(), "/part%d%7s", &part, rest) == 2 &&
@@ -1709,6 +2149,8 @@ bool handleKey(MSG &m)
         }
         return false;
     }
+    if(ctrl && !alt && (m.wParam == VK_DOWN || m.wParam == VK_UP))
+        return jumpSection(m.wParam == VK_DOWN ? 1 : -1);
     if(ctrl || alt)
         return false;
     if(c.kind == K_BUTTON || c.kind == K_INDEX)

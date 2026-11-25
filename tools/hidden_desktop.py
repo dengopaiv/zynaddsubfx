@@ -79,7 +79,7 @@ def main():
     si.dwFlags = STARTF_USESTDHANDLES
     si.hStdOutput = si.hStdError = handle
     pi = PROCESS_INFORMATION()
-    env = dict(os.environ, PYTHONUNBUFFERED='1')
+    env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8')
     block = ''.join('%s=%s\0' % kv for kv in env.items()) + '\0'
     ok = kernel32.CreateProcessW(None, ctypes.create_unicode_buffer(full),
                                  None, None, True,
@@ -99,8 +99,8 @@ def main():
             chunk = f.read()
         if chunk:
             pos += len(chunk)
-            sys.stdout.write(chunk.decode('utf-8', 'replace'))
-            sys.stdout.flush()
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
         if done:
             break
     code = wintypes.DWORD()

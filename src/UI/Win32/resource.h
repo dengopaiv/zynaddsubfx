@@ -16,3 +16,8 @@
 #define IDC_INSTR_LIST       302
 #define IDC_BANK_PART        303
 #define IDC_BANK_STATUS      304
+
+#define IDD_FIND             400
+#define IDC_FIND_EDIT        401
+#define IDC_FIND_LIST        402
+#define IDC_FIND_COUNT       403

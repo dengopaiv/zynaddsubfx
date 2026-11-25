@@ -43,3 +43,17 @@ BEGIN
     PUSHBUTTON      "Close", IDCANCEL, 302, 196, 50, 14
     LTEXT           "", IDC_BANK_STATUS, 118, 198, 120, 10, NOT WS_VISIBLE
 END
+
+IDD_FIND DIALOGEX 0, 0, 340, 210
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Find a setting"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT           "&Find (part of a name; several words all have to match):", -1, 8, 6, 324, 10
+    EDITTEXT        IDC_FIND_EDIT, 8, 18, 324, 14, ES_AUTOHSCROLL
+    LTEXT           "&Settings found:", -1, 8, 38, 200, 10
+    LISTBOX         IDC_FIND_LIST, 8, 50, 324, 132, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | LBS_NOINTEGRALHEIGHT | NOT LBS_SORT
+    LTEXT           "", IDC_FIND_COUNT, 8, 190, 170, 10
+    DEFPUSHBUTTON   "&Go to", IDOK, 228, 188, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 282, 188, 50, 14
+END

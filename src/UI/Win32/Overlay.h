@@ -17,6 +17,7 @@
 namespace zynui {
 struct Param;
 struct Node;
+struct Section;
 
 namespace overlay {
 
@@ -42,6 +43,11 @@ std::wstring arrayIndexName(const std::string &base);
 //! Controls the metadata does not mark as parameters: actions (buttons)
 //! and the tuning texts
 void addExtras(const Node &n, std::vector<Param> &params);
+
+//! A large group's settings divided into named sections (empty: show the
+//! group whole). Settings no section claims go to "Other".
+std::vector<Section> sections(const std::string &nodePath,
+                              const std::vector<Param> &params);
 
 }
 }

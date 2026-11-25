@@ -277,6 +277,197 @@ void addExtras(const Node &n, std::vector<Param> &params)
     }
 }
 
+// ------------------------------------------------------------ sections
+
+//! One section: its name and the settings it takes, as port names; a name
+//! ending in '*' takes every port starting with it
+struct SectionRule {
+    const wchar_t *label;
+    std::vector<const char *> ports;
+};
+
+static bool takes(const SectionRule &r, const std::string &name)
+{
+    for(const char *p : r.ports) {
+        const size_t n = strlen(p);
+        if(n && p[n - 1] == '*') {
+            if(name.compare(0, n - 1, p, n - 1) == 0)
+                return true;
+        } else if(name == p)
+            return true;
+    }
+    return false;
+}
+
+//! The rules for a group, chosen by the last part of its path
+static const std::vector<SectionRule> *rulesFor(const std::string &nodePath)
+{
+    static const std::vector<SectionRule> padsynth = {
+        {L"Output", {"PStereo", "PPanning", "PVolume", "Volume",
+                     "PAmpVelocityScaleFunction", "Fadein_adjustment"}},
+        {L"Punch", {"PPunch*"}},
+        {L"Filter velocity", {"PFilterVelocity*"}},
+        {L"Frequency", {"Pfixedfreq", "PfixedfreqET", "PBendAdjust",
+                        "POffsetHz", "PDetune", "PCoarseDetune", "PDetuneType",
+                        "octave", "coarsedetune"}},
+        {L"Harmonic profile", {"Pmode", "Php.*"}},
+        {L"Overtones", {"Phrpos.*"}},
+        {L"Bandwidth", {"Pbandwidth", "Pbwscale"}},
+        {L"Sample", {"Pquality.*", "prepare"}},
+    };
+    static const std::vector<SectionRule> addGlobal = {
+        {L"Output", {"PStereo", "PPanning", "Volume", "PVolume",
+                     "PAmpVelocityScaleFunction", "Fadein_adjustment",
+                     "Hrandgrouping"}},
+        {L"Punch", {"PPunch*"}},
+        {L"Filter velocity", {"PFilterVelocity*"}},
+        {L"Frequency", {"PDetune", "PCoarseDetune", "PDetuneType",
+                        "PBandwidth", "octave", "coarsedetune"}},
+    };
+    static const std::vector<SectionRule> addVoice = {
+        {L"Voice", {"Enabled", "Type", "PDelay", "Presonance", "PsyncEnabled"}},
+        {L"Unison", {"Unison_*"}},
+        {L"Modulator", {"PFM*", "FM*", "PextFMoscil", "PFMoscilphase"}},
+        {L"Oscillator", {"Pextoscil", "Poscilphase"}},
+        {L"Frequency", {"Pfixedfreq", "PfixedfreqET", "PBendAdjust",
+                        "POffsetHz", "PDetune", "PCoarseDetune", "PDetuneType",
+                        "octave", "coarsedetune", "PFreqEnvelopeEnabled",
+                        "PFreqLfoEnabled"}},
+        {L"Amplitude", {"PPanning", "volume", "Volume", "PVolume",
+                        "PVolumeminus", "PAAEnabled",
+                        "PAmpVelocityScaleFunction", "PAmpEnvelopeEnabled",
+                        "PAmpLfoEnabled"}},
+        {L"Filter", {"PFilter*", "Pfilter*"}},
+    };
+    static const std::vector<SectionRule> subsynth = {
+        {L"Output", {"Pstereo", "Volume", "PVolume", "PPanning",
+                     "AmpVelocityScaleFunction", "PAmpVelocityScaleFunction"}},
+        {L"Frequency", {"PDetune", "PCoarseDetune", "PDetuneType",
+                        "Pfixedfreq", "PfixedfreqET", "PBendAdjust",
+                        "POffsetHz", "octave", "coarsedetune",
+                        "PFreqEnvelopeEnabled"}},
+        {L"Filter", {"PGlobalFilter*"}},
+        {L"Harmonics", {"Pnumstages", "Pbandwidth", "Phmagtype", "Phmag",
+                        "Phrelbw", "Pbwscale", "Pstart",
+                        "PBandWidthEnvelopeEnabled"}},
+        {L"Overtones", {"POvertoneSpread.*"}},
+    };
+    static const std::vector<SectionRule> part = {
+        {L"Part", {"Penabled", "Volume", "Pvolume", "Ppanning", "Pkeyshift",
+                   "Prcvchn"}},
+        {L"Keys and voices", {"Pkeylimit", "Pvoicelimit", "Pminkey",
+                              "Pmaxkey", "Pnoteon", "Pvelsns", "Pveloffs",
+                              "captureMin", "captureMax"}},
+        {L"Modes", {"Pkitmode", "Pdrummode", "Ppolymode", "Plegatomode",
+                    "polyType"}},
+        {L"Instrument information", {"info.*", "Pname"}},
+        {L"Effect routing", {"Pefxroute", "Pefxbypass"}},
+    };
+    static const std::vector<SectionRule> controllers = {
+        {L"Pitch wheel", {"pitchwheel.*"}},
+        {L"Modulation wheel", {"modwheel.*"}},
+        {L"Portamento", {"portamento.*"}},
+        {L"Controller depths", {"panning.*", "filtercutoff.*", "filterq.*",
+                                "bandwidth.*", "resonancecenter.*",
+                                "resonancebandwidth.*"}},
+        {L"Controllers received", {"expression.receive", "fmamp.receive",
+                                   "volume.receive", "sustain.receive",
+                                   "NRPN.receive"}},
+    };
+    static const std::vector<SectionRule> oscillator = {
+        {L"Base function", {"Pcurrentbasefunc", "Pbasefunc*", "use-as-base"}},
+        {L"Harmonics", {"magnitude", "phase", "Phmagtype", "Pharmonicshift*",
+                        "convert2sine"}},
+        {L"Randomness", {"Prand", "Pamprand*"}},
+        {L"Adaptive harmonics", {"Padaptiveharmonics*"}},
+        {L"Waveshaping", {"Pwaveshaping*"}},
+        {L"Filter", {"Pfilter*"}},
+        {L"Spectrum adjust", {"Psatype", "Psapar"}},
+        {L"Modulation", {"Pmodulation*"}},
+    };
+    static const std::vector<SectionRule> filter = {
+        {L"Filter", {"Pcategory", "Ptype", "Pstages", "baseq", "basefreq",
+                     "freqtracking", "gain", "type-*", "Pfreq", "Pq",
+                     "Pfreqtrack", "Pgain"}},
+        {L"Formants", {"Pnumformants", "Pformantslowness", "Pvowelclearness",
+                       "Pcenterfreq", "Poctavesfreq"}},
+        {L"Vowel sequence", {"Psequence*", "vowel_seq"}},
+    };
+    static const std::vector<SectionRule> settings = {
+        {L"Audio", {"cfg.SampleRate", "cfg.SoundBufferSize", "cfg.OscilSize",
+                    "cfg.OscilPower", "cfg.Interpolation", "cfg.SwapStereo",
+                    "cfg.AudioOutputCompressor"}},
+        {L"Files", {"cfg.GzipCompression", "cfg.SaveFullXml",
+                    "cfg.CheckPADsynth"}},
+    };
+    static const std::vector<SectionRule> tuning = {
+        {L"Scale", {"Penabled", "PAnote", "PAfreq", "Pscaleshift",
+                    "Pinvertupdown", "Pinvertupdowncenter", "Pglobalfinedetune",
+                    "Pname", "Pcomment", "tunings", "octavesize"}},
+        {L"Keyboard mapping", {"Pfirstkey", "Plastkey", "Pmiddlenote",
+                               "Pmapsize", "Pmappingenabled", "Pmapping",
+                               "mapping"}},
+    };
+
+    std::string seg = nodePath;
+    if(!seg.empty() && seg.back() == '/')
+        seg.pop_back();
+    seg = seg.substr(seg.rfind('/') + 1);
+    std::string base = seg;
+    while(!base.empty() && isdigit((unsigned char)base.back()))
+        base.pop_back();
+
+    if(base == "padpars")                      return &padsynth;
+    if(base == "GlobalPar")                    return &addGlobal;
+    if(base == "VoicePar")                     return &addVoice;
+    if(base == "subpars")                      return &subsynth;
+    if(base == "part" && nodePath.find('/', 1) == nodePath.size() - 1)
+                                               return &part;
+    if(base == "ctl")                          return &controllers;
+    if(base == "OscilSmp" || base == "FMSmp" || base == "oscilgen")
+                                               return &oscillator;
+    if(base == "GlobalFilter" || base == "VoiceFilter" ||
+       base == "filterpars")                   return &filter;
+    if(base == "config")                       return &settings;
+    if(base == "microtonal")                   return &tuning;
+    return nullptr;
+}
+
+//! Larger groups than this get sections
+constexpr size_t kSectionThreshold = 12;
+
+std::vector<Section> sections(const std::string &nodePath,
+                              const std::vector<Param> &params)
+{
+    std::vector<Section> out;
+    const std::vector<SectionRule> *rules = rulesFor(nodePath);
+    if(!rules || params.size() <= kSectionThreshold)
+        return out;
+    std::vector<Section> s(rules->size());
+    Section other;
+    other.label = L"Other";
+    for(size_t i = 0; i < rules->size(); ++i)
+        s[i].label = (*rules)[i].label;
+    for(const Param &p : params) {
+        bool placed = false;
+        for(size_t i = 0; i < rules->size() && !placed; ++i)
+            if(takes((*rules)[i], p.name)) {
+                s[i].params.push_back(p);
+                placed = true;
+            }
+        if(!placed)
+            other.params.push_back(p);
+    }
+    for(Section &sec : s)
+        if(!sec.params.empty())
+            out.push_back(std::move(sec));
+    if(!other.params.empty())
+        out.push_back(std::move(other));
+    if(out.size() < 2)
+        out.clear(); //one section is no division
+    return out;
+}
+
 static bool contains(const std::wstring &hay, const wchar_t *needle)
 {
     std::wstring h = hay, n = needle;

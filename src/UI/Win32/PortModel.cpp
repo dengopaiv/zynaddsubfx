@@ -120,8 +120,15 @@ Node rootNode()
 std::vector<Node> children(const Node &n)
 {
     std::vector<Node> out;
-    if(!n.ports)
-        return out;
+    if(!n.ports || !n.section.empty())
+        return out; //a section holds settings only
+    //a large group: its sections first, then its own groups
+    for(const Section &sec : sections(n)) {
+        Node c    = n;
+        c.section = sec.label;
+        c.label   = sec.label;
+        out.push_back(c);
+    }
     std::set<std::string> seen;
     for(const rtosc::Port &p : n.ports->ports) {
         if(!p.ports)
@@ -163,7 +170,26 @@ static double number(const char *s, double fallback)
     return end == s ? fallback : v;
 }
 
+std::vector<Section> sections(const Node &n)
+{
+    if(!n.section.empty())
+        return {};
+    return overlay::sections(n.path, allParams(n));
+}
+
 std::vector<Param> params(const Node &n)
+{
+    if(n.section.empty())
+        return allParams(n);
+    Node whole    = n;
+    whole.section.clear();
+    for(const Section &sec : sections(whole))
+        if(sec.label == n.section)
+            return sec.params;
+    return {};
+}
+
+std::vector<Param> allParams(const Node &n)
 {
     std::vector<Param> out;
     if(!n.ports)
