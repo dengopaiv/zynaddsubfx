@@ -103,9 +103,12 @@ static std::string firstLine(const std::string &doc)
     return s;
 }
 
-std::wstring paramLabel(const std::string &, const std::string &base,
+std::wstring paramLabel(const std::string &nodePath, const std::string &base,
                         const std::string &doc, const std::string &shortName)
 {
+    //the engine describes a voice's volume as "Part Volume"
+    if(base == "volume" && nodePath.find("/VoicePar") != std::string::npos)
+        return L"Voice volume";
     //names the descriptions do not give well
     static const std::map<std::string, std::wstring> names = {
         {"efftype",  L"Effect type"},
@@ -115,9 +118,20 @@ std::wstring paramLabel(const std::string &, const std::string &base,
         {"phase",     L"Harmonic phase"},
         {"Penvval",   L"Point value"},
         {"Penvdt",    L"Point time"},
+        {"envdt",     L"Point time"},
         {"Prespoints", L"Resonance point"},
         {"Pmapping",  L"Mapped scale degree"},
         {"Pinsparts", L"Where the insertion effect works"},
+        {"VoicePar",  L"Voice enabled"},
+        {"Hrandgrouping", L"Same randomness for all voices"},
+        {"Prand",     L"Phase randomness"},
+        {"Pfilterbeforews", L"Filter before waveshaping"},
+        {"PVolumeminus", L"Invert the voice (signal inverter)"},
+        {"Pscaleshift", L"Scale shift"},
+        {"cfg.OscilSize", L"Size Of Oscillator Wavetable"},
+        {"cfg.OscilPower", L"Size Of Oscillator Wavetable, as a power of two"},
+        {"portamento.proportional", L"Proportional portamento time"},
+        {"PAfreq",    L"Frequency of the 'A' note"},
         {"Pefxroute", L"Part effect output"},
         {"Pefxbypass", L"Part effect bypassed"},
     };
@@ -147,6 +161,10 @@ static void addUnits(Param &p)
     if(n == "A_dt" || n == "D_dt" || n == "R_dt" || n == "delay" ||
        n == "fadein" || n == "fadeout")
         p.unit = "S";
+    if(n == "envdt")
+        p.unit = "ms";
+    if(n == "PAfreq")
+        p.unit = "Hz";
 }
 
 void arrange(const std::string &, std::vector<Param> &params)
@@ -171,6 +189,10 @@ void arrange(const std::string &, std::vector<Param> &params)
         //named settings, which the effect type's group shows
         if(p.name == "parameter" && p.count > 0)
             continue;
+        //the envelope's point times twice: Penvdt (0 to 127) and envdt
+        //(milliseconds); the one in milliseconds is kept
+        if(p.name == "Penvdt")
+            continue;
         kept.push_back(p);
     }
     //Still the same name: different parameters with one description
@@ -178,8 +200,16 @@ void arrange(const std::string &, std::vector<Param> &params)
     for(const Param &p : kept)
         ++seen[p.label];
     for(Param &p : kept)
-        if(seen[p.label] > 1)
-            p.label += L" (" + widen(p.name) + L")";
+        if(seen[p.label] > 1) {
+            //"... parameter 1", "... parameter 2" when the ports are
+            //numbered (Pfilterpar1, Phrpos.par2), else the port's name
+            size_t d = p.name.size();
+            while(d > 0 && isdigit((unsigned char)p.name[d - 1]))
+                --d;
+            p.label += d < p.name.size()
+                           ? L" " + widen(p.name.substr(d))
+                           : L" (" + widen(p.name) + L")";
+        }
     params.swap(kept);
 }
 
@@ -202,6 +232,10 @@ std::wstring arrayIndexName(const std::string &base)
         return L"Step";
     if(base == "part")
         return L"Part";
+    if(base == "VoicePar")
+        return L"Voice";
+    if(base == "to")
+        return L"System effect";
     return L"Item";
 }
 
@@ -341,7 +375,8 @@ static const std::vector<SectionRule> *rulesFor(const std::string &nodePath)
         {L"Voice", {"Enabled", "Type", "PDelay", "Presonance", "PsyncEnabled"}},
         {L"Unison", {"Unison_*"}},
         {L"Modulator", {"PFM*", "FM*", "PextFMoscil", "PFMoscilphase"}},
-        {L"Oscillator", {"Pextoscil", "Poscilphase"}},
+        //not "Oscillator" or "Filter": the voice has groups of those names
+        {L"Oscillator source", {"Pextoscil", "Poscilphase"}},
         {L"Frequency", {"Pfixedfreq", "PfixedfreqET", "PBendAdjust",
                         "POffsetHz", "PDetune", "PCoarseDetune", "PDetuneType",
                         "octave", "coarsedetune", "PFreqEnvelopeEnabled",
@@ -350,7 +385,7 @@ static const std::vector<SectionRule> *rulesFor(const std::string &nodePath)
                         "PVolumeminus", "PAAEnabled",
                         "PAmpVelocityScaleFunction", "PAmpEnvelopeEnabled",
                         "PAmpLfoEnabled"}},
-        {L"Filter", {"PFilter*", "Pfilter*"}},
+        {L"Filter switches", {"PFilter*", "Pfilter*"}},
     };
     static const std::vector<SectionRule> subsynth = {
         {L"Output", {"Pstereo", "Volume", "PVolume", "PPanning",
@@ -359,7 +394,7 @@ static const std::vector<SectionRule> *rulesFor(const std::string &nodePath)
                         "Pfixedfreq", "PfixedfreqET", "PBendAdjust",
                         "POffsetHz", "octave", "coarsedetune",
                         "PFreqEnvelopeEnabled"}},
-        {L"Filter", {"PGlobalFilter*"}},
+        {L"Filter switches", {"PGlobalFilter*"}},
         {L"Harmonics", {"Pnumstages", "Pbandwidth", "Phmagtype", "Phmag",
                         "Phrelbw", "Pbwscale", "Pstart",
                         "PBandWidthEnvelopeEnabled"}},
@@ -512,8 +547,11 @@ std::wstring formatValue(const Param &p, double v)
     const int iv = (int)std::lround(v);
     const bool int127 = p.type != 'f' && p.min == 0 && p.max == 127;
 
-    //Panning: 64 is the centre; some panners use 0 for "random"
-    if(int127 && contains(p.label + L" " + widen(p.name), L"pan")) {
+    //Panning: 64 is the centre; some panners use 0 for "random". Not the
+    //depth of the panning controller, nor "PAnote" (the note for A).
+    const std::wstring wname = widen(p.name);
+    if(int127 && contains(p.label + L" " + wname, L"panning") &&
+       !contains(wname, L"depth") && !contains(p.label, L"depth")) {
         if(iv == 0 && contains(p.doc, L"random"))
             return L"random";
         if(iv == 64)
@@ -529,7 +567,10 @@ std::wstring formatValue(const Param &p, double v)
         return d == 0 ? L"0, none" : (d > 0 ? L"+" : L"") + std::to_wstring(d);
     }
     //Key ranges
-    if(int127 && (p.name == "Pminkey" || p.name == "Pmaxkey"))
+    if(int127 && (p.name == "Pminkey" || p.name == "Pmaxkey" ||
+                  p.name == "Pfirstkey" || p.name == "Plastkey" ||
+                  p.name == "Pmiddlenote" || p.name == "PAnote" ||
+                  p.name == "Pinvertupdowncenter"))
         return noteName(iv);
     //Key shift stored as 64 + semitones
     if(int127 && p.name == "Pkeyshift") {

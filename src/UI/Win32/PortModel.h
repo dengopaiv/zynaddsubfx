@@ -44,6 +44,8 @@ struct Param {
                                  //!< path is then the element path without
                                  //!< its number
     std::wstring indexName;      //!< an array's element: "Harmonic", "Point"
+    std::string  indexSuffix;    //!< what follows an element's number in its
+                                 //!< path ("/Enabled" in VoicePar3/Enabled)
     bool         multiline = false; //!< text of several lines
 };
 

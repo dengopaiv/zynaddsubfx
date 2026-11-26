@@ -46,12 +46,16 @@ std::string narrow(const std::wstring &w)
     return s;
 }
 
-//! "part#16/" -> base "part", count 16; "adpars/" -> "adpars", 0
+//! "part#16/" -> base "part", count 16; "adpars/" -> "adpars", 0;
+//! "VoicePar#8/Enabled" -> base "VoicePar", count 8, suffix "/Enabled" (the
+//! element's path is then base, number, suffix: "VoicePar3/Enabled")
 static void splitName(const char *portName, std::string &base, int &count,
-                      std::string &args)
+                      std::string &args, std::string *suffix = nullptr)
 {
     std::string n = portName;
     args.clear();
+    if(suffix)
+        suffix->clear();
     size_t colon = n.find(':');
     if(colon != std::string::npos) {
         args = n.substr(colon);
@@ -63,7 +67,12 @@ static void splitName(const char *portName, std::string &base, int &count,
     size_t hash = n.find('#');
     if(hash != std::string::npos) {
         count = atoi(n.c_str() + hash + 1);
-        n     = n.substr(0, hash);
+        size_t after = hash + 1;
+        while(after < n.size() && isdigit((unsigned char)n[after]))
+            ++after;
+        if(suffix)
+            *suffix = n.substr(after);
+        n = n.substr(0, hash);
     }
     base = n;
 }
@@ -200,7 +209,8 @@ std::vector<Param> allParams(const Node &n)
             continue;
         std::string base, args;
         int count;
-        splitName(p.name, base, count, args);
+        std::string suffix;
+        splitName(p.name, base, count, args, &suffix);
         if(base.empty())
             continue;
         if(!seen.insert(base).second)
@@ -211,6 +221,7 @@ std::vector<Param> allParams(const Node &n)
         q.name  = base;
         q.path  = n.path + base;
         q.count = count; //an array: one element at a time
+        q.indexSuffix = suffix;
         if(count > 0)
             q.indexName = overlay::arrayIndexName(base);
 
@@ -333,12 +344,14 @@ std::wstring valueText(const Param &p, double v)
     }
     if(u == "dB")
         return fmt(L"%.1f dB", v);
+    if(u == "ms")
+        return fmt(L"%.1f ms", v);
     if(u == "%" || u == "percent")
         return fmt(L"%.0f %%", v);
     if(u == "1/100 s")
         return fmt(L"%.0f ms", v * 10.0);
-    if(u == "% of semitone")
-        return fmt(L"%.0f %% of a semitone", v);
+    if(u == "% of semitone") //a hundredth of a semitone is a cent
+        return fmt(L"%.0f cents", v);
     if(u == "semitones")
         return fmt(L"%.2f semitones", v);
     if(u == "BPM")

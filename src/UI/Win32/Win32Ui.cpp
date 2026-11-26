@@ -109,6 +109,25 @@ std::string nodeKey(const Node &n)
 //The control last focused in each group (by node key): its path
 std::map<std::string, std::string> gFocusMemo;
 
+//The pane's heading, and for a pane inside an engine (AddSynth, SubSynth,
+//PADsynth) the kit item's switch for that engine: an engine that is off
+//answers no questions, so its settings would all read 0
+HWND         gHeading = nullptr;
+std::wstring gHeadingText;
+std::string  gEngineSwitch;   //e.g. "/part0/kit0/Ppadenabled", or ""
+std::wstring gEngineName;     //"PADsynth"
+bool         gEngineOff = false;
+
+std::wstring engineOffNote()
+{
+    return gEngineName + L" is off in this kit item, so its settings show "
+           L"no values. Switch it on with \"" +
+           (gEngineName == L"AddSynth" ? std::wstring(L"ADsynth")
+            : gEngineName == L"SubSynth" ? std::wstring(L"SUBsynth")
+                                         : gEngineName) +
+           L" enable\" in the kit item.";
+}
+
 //Effect slots: their current effect type (EffectMgr's efftype)
 std::map<std::string, int> gEffType;
 constexpr int kDynFilterType = 8;
@@ -408,6 +427,7 @@ void clearPane()
     //anything else on the canvas (the heading)
     while(HWND h = GetWindow(gCanvas, GW_CHILD))
         DestroyWindow(h);
+    gHeading = nullptr;
 }
 
 HWND makeChild(const wchar_t *cls, const wchar_t *text, DWORD style, int id)
@@ -544,7 +564,29 @@ void buildPane(const Node &n, const std::wstring &title)
     else if(!secs.empty())
         head += L": " + std::to_wstring(secs.size()) + L" sections. Ctrl+Down "
                 L"and Ctrl+Up jump between them; they are also in the tree.";
-    makeChild(L"STATIC", head.c_str(), SS_LEFT | SS_NOPREFIX, -1);
+    gHeadingText = head;
+    gHeading = makeChild(L"STATIC", head.c_str(), SS_LEFT | SS_NOPREFIX, -1);
+
+    //inside an engine: is it switched on in its kit item?
+    gEngineSwitch.clear();
+    gEngineOff = false;
+    {
+        static const std::pair<const char *, const wchar_t *> engines[] = {
+            {"/adpars/", L"AddSynth"}, {"/subpars/", L"SubSynth"},
+            {"/padpars/", L"PADsynth"}};
+        static const char *switches[] = {"Padenabled", "Psubenabled",
+                                         "Ppadenabled"};
+        for(int e = 0; e < 3; ++e) {
+            size_t at = n.path.find(engines[e].first);
+            if(at != std::string::npos &&
+               n.path.compare(0, 5, "/part") == 0) {
+                gEngineSwitch = n.path.substr(0, at + 1) + switches[e];
+                gEngineName   = engines[e].second;
+                request(gEngineSwitch);
+                break;
+            }
+        }
+    }
 
     int id = kFirstCtlId;
     for(Item &item : items) {
@@ -569,7 +611,7 @@ void buildPane(const Node &n, const std::wstring &title)
                        L"edits";
             Ctl *index = addControl(ip, K_INDEX, id++);
             Param vp = p;
-            vp.path  = p.path + "0";
+            vp.path  = p.path + "0" + p.indexSuffix;
             vp.label = p.label + L", " + p.indexName + L" 1";
             //each element is a slider, or a list or check box when the
             //elements have named choices or are on/off
@@ -688,7 +730,7 @@ void chooseElement(Ctl &index, int i)
     if(!t)
         return;
     gByPath.erase(t->p.path);
-    t->p.path = t->base + std::to_string(i);
+    t->p.path = t->base + std::to_string(i) + t->p.indexSuffix;
     t->known  = false;
     gByPath[t->p.path] = t;
     const std::wstring name = t->p.label.substr(0, t->p.label.rfind(L", ")) +
@@ -1279,6 +1321,14 @@ void requestPartNames()
 //! Replies the tree and the bank browser want (whatever the pane shows)
 void handleSideMessage(const char *msg, const char *args)
 {
+    if(!gEngineSwitch.empty() && gEngineSwitch == msg &&
+       (args[0] == 'T' || args[0] == 'F')) {
+        gEngineOff = args[0] == 'F';
+        if(gHeading)
+            SetWindowTextW(gHeading, gEngineOff
+                               ? (gHeadingText + L" " + engineOffNote()).c_str()
+                               : gHeadingText.c_str());
+    }
     int part = -1;
     char field[32] = "";
     if(sscanf(msg, "/part%d/%31s", &part, field) == 2 && part >= 0 &&
@@ -1677,7 +1727,12 @@ void findSetting()
 
 const wchar_t *kHelp =
     L"Keys\n\n"
-    L"F6: move between the tree and the settings of the selected group.\n"
+    L"F6: move between the tree and the settings of the selected group "
+    L"(to the setting last used there).\n"
+    L"Alt+Left, Alt+Right: the same group of the previous or next voice, "
+    L"part, kit item or effect, keeping the setting.\n"
+    L"Ctrl+Down, Ctrl+Up (in the settings): next or previous section.\n"
+    L"Ctrl+F: find a setting by name.\n"
     L"Tree: arrows move, Right opens a group, Left closes it. Typing a name "
     L"jumps to it.\n"
     L"Settings: Tab and Shift+Tab move between controls.\n"
@@ -1694,7 +1749,8 @@ const wchar_t *kHelp =
     L"Ctrl+Shift+S: save the current part as an instrument\n"
     L"Ctrl+Z, Ctrl+Y: undo, redo\n"
     L"Ctrl+Comma: audio and MIDI settings\n"
-    L"F1: this list";
+    L"F1: this list\n\n"
+    L"Everything is described in MANUAL.txt, next to the program.";
 
 void command(int id)
 {
@@ -1807,7 +1863,9 @@ void command(int id)
             HWND f = GetFocus();
             if(f == gTree || !IsChild(gCanvas, f)) {
                 if(focusPane())
-                    access::announce(nodeTitle(TreeView_GetSelection(gTree)));
+                    access::announce(nodeTitle(TreeView_GetSelection(gTree)) +
+                                     (gEngineOff ? L". " + engineOffNote()
+                                                 : std::wstring()));
                 else
                     say(L"No settings here");
             } else
