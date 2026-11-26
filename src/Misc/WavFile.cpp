@@ -23,7 +23,9 @@ namespace zyn {
 
 WavFile::WavFile(string filename, int samplerate, int channels)
     :sampleswritten(0), samplerate(samplerate), channels(channels),
-      file(fopen(filename.c_str(), "w"))
+      //binary: in text mode Windows turns every 0x0A byte of the sound
+      //into 0x0D 0x0A
+      file(fopen(filename.c_str(), "wb"))
 
 {
     if(file) {

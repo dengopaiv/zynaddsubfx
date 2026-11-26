@@ -192,6 +192,10 @@ int  gHoldNote = 48, gHoldVelocity = 100; //C3
 bool gHoldOn   = false;
 int  gHoldChan = 0, gHoldPlaying = 48;    //what is sounding now
 
+//Recording to a WAV file (the synthesizer's HDD recorder)
+bool         gRecording = false;
+std::wstring gRecordFile;
+
 //Playing from the computer keyboard
 HWND gPlayWnd     = nullptr;
 int  gPlayOctave  = 4, gPlayVelocity = 100;
@@ -203,7 +207,7 @@ enum {
     IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY, IDM_PREV_GROUP,
     IDM_NEXT_GROUP, IDM_FIND, IDM_NEXT_SECTION, IDM_PREV_SECTION,
     IDM_OPEN_SCL, IDM_OPEN_KBM, IDM_OPEN_XSZ, IDM_SAVE_XSZ,
-    IDM_HOLD_NOTE, IDM_HOLD_NOTE_SETTINGS,
+    IDM_HOLD_NOTE, IDM_HOLD_NOTE_SETTINGS, IDM_RECORD,
 };
 
 int px(int v) { return MulDiv(v, (int)gDpi, 96); }
@@ -1859,6 +1863,7 @@ const wchar_t *kHelp =
     L"Ctrl+S: save a master file\n"
     L"Ctrl+B: instrument banks (Enter loads, Space plays a note)\n"
     L"Ctrl+K: play from the computer keyboard\n"
+    L"Ctrl+R: record to a WAV file (from the next note), or stop recording\n"
     L"F5: hold a note on the current part while you edit; F5 again stops it "
     L"(Options, Held note and velocity, chooses the note)\n"
     L"Ctrl+I: open an instrument (.xiz) into the current part\n"
@@ -2001,6 +2006,21 @@ void command(int id)
         case IDM_HOLD_NOTE:
             toggleHoldNote();
             break;
+        case IDM_RECORD:
+            if(gRecording) {
+                send("/HDDRecorder/stop", "");
+                gRecording = false;
+                say(L"Recording stopped. Saved " + gRecordFile);
+            } else if(fileDialog(true, L"Wave files (*.wav)\0*.wav\0", L"wav",
+                                 f)) {
+                send("/HDDRecorder/preparefile", "s", f.c_str());
+                send("/HDDRecorder/start", "");
+                gRecording  = true;
+                gRecordFile = fileName(f);
+                say(L"Ready to record into " + gRecordFile + L". Recording "
+                    L"starts with the next note. Ctrl+R stops it");
+            }
+            break;
         case IDM_HOLD_NOTE_SETTINGS:
             if(DialogBoxParamW(gInst, MAKEINTRESOURCEW(IDD_HOLDNOTE), gMain,
                                holdNoteProc, 0) == IDOK)
@@ -2036,6 +2056,9 @@ HMENU makeMenu()
                 L"Open &instrument into current part...\tCtrl+I");
     AppendMenuW(file, MF_STRING, IDM_SAVE_INSTR,
                 L"Save current part as instr&ument...\tCtrl+Shift+S");
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, IDM_RECORD,
+                L"&Record to WAV file, or stop recording...\tCtrl+R");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, IDM_OPEN_SCL, L"Open Scala s&cale (.scl)...");
     AppendMenuW(file, MF_STRING, IDM_OPEN_KBM,
@@ -2097,6 +2120,7 @@ HACCEL makeAccel()
         {FALT | FVIRTKEY, VK_RIGHT, IDM_NEXT_GROUP},
         {FCONTROL | FVIRTKEY, 'F', IDM_FIND},
         {FVIRTKEY, VK_F5, IDM_HOLD_NOTE},
+        {FCONTROL | FVIRTKEY, 'R', IDM_RECORD},
     };
     return CreateAcceleratorTableW(a, sizeof(a) / sizeof(a[0]));
 }
@@ -2389,6 +2413,8 @@ LRESULT CALLBACK mainProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         case WM_DESTROY:
             holdNoteOff();
+            if(gRecording) //finish the file
+                send("/HDDRecorder/stop", "");
             clearPane();
             access::shutdown();
             gMain = gTree = gView = gCanvas = gStatus = gTreeLabel = nullptr;

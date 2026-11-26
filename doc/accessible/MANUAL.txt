@@ -576,6 +576,7 @@ so on) open a menu directly. Shortcuts are shown next to each command.
   (Part 1 when you are not in a part).
 - Save current part as instrument... (Ctrl+Shift+S): save the current part
   as an instrument file (.xiz).
+- Record to WAV file, or stop recording... (Ctrl+R): section 9.8.
 - Open Scala scale (.scl)...: open a scale for the tuning (chapter 23).
   Then switch Tuning on.
 - Open Scala keyboard mapping (.kbm)...: open a keyboard mapping for the
@@ -753,11 +754,42 @@ Other ways to hear a sound while editing: hold a key of a MIDI keyboard
 part's Synthesis polyphony type to Latch (12.3), play notes with the play
 window, close it, and edit while they keep sounding.
 
---- 9.8 Restore
+--- 9.8 Recording to a WAV file: Ctrl+R
+
+File, Record to WAV file (Ctrl+R) records everything you hear into a WAV
+file:
+
+1. Press Ctrl+R. The Save dialog asks for the file's name and folder (a
+   name ending in .wav; an existing file is replaced after asking).
+2. The program says "Ready to record into song.wav. Recording starts with
+   the next note. Ctrl+R stops it", and the status bar keeps saying so.
+3. Recording starts with the next note that is played, from a MIDI
+   keyboard, the play window (Ctrl+K) or the held note (F5). The silence
+   before the first note is not recorded.
+4. Play. Everything that sounds is recorded: all parts, with their effects
+   and the system effects, after the master volume, as you hear it.
+5. Press Ctrl+R again to stop. The program says "Recording stopped. Saved
+   song.wav". The file is complete only now. Closing the program while
+   recording also stops and completes it.
+
+The file is a standard WAV file: stereo, 16-bit, at the synthesizer's
+sample rate (44100 Hz by default; chapter 24). Any audio editor or player
+opens it.
+
+Tips:
+
+- Stop the recording after the last note has faded out (reverb tails take
+  a few seconds), or the end is cut.
+- To record one sound for use elsewhere (a sample), hold a note with F5
+  after Ctrl+R, then stop the note with F5 and the recording with Ctrl+R.
+- Recording runs alongside the sound output; it does not change what you
+  hear, and works with any audio output, also with none.
+
+--- 9.9 Restore
 
 At the start after a crash: section 2.5.
 
---- 9.9 Messages from the synthesizer
+--- 9.10 Messages from the synthesizer
 
 Some errors come from the synthesizer itself, for example when a file
 cannot be read or a tuning text has an error. They are spoken and shown in
@@ -1768,6 +1800,8 @@ To reset all settings, close the program and delete zynaddsubfxXML.cfg.
   files.
 - .xsz: a ZynAddSubFX scale (chapter 23).
 - .scl and .kbm: Scala scale and keyboard mapping files (chapter 23).
+- .wav: recordings, written by File, Record to WAV file (Ctrl+R, section
+  9.8). Only written, never opened by the program.
 - .xpz: presets of single components (envelopes, filters ...), used by
   upstream's copy and paste; not used by this edition's interface yet.
 
@@ -2003,6 +2037,7 @@ Anywhere in the main window
   Ctrl+B              instrument banks
   Ctrl+I              open an instrument into the current part
   Ctrl+Shift+S        save the current part as an instrument
+  Ctrl+R              record to a WAV file, or stop recording
   Ctrl+K              play from the computer keyboard
   F5                  hold a note on the current part, or stop it
   Ctrl+F              find a setting
