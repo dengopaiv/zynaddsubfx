@@ -38,7 +38,8 @@ What exists now:
 * **Checked through UI Automation** (`tools/uia_check.py --sweep`, run on a
   hidden desktop with `tools/hidden_desktop.py`). The sweep covered 64
   groups (Master, all of Part 1 with Kit item 1 and Voice 1, the effects,
-  Tuning, Controllers and Settings) and 955 controls. Not one control was
+  Tuning, Controllers and Settings) and 955 controls. After the navigation
+  work: 151 groups, sections included, and 1,368 controls, again clean. Not one control was
   unnamed, and not one slider was without a value. Keys typed into sliders,
   the harmonic chooser and the bank browser were checked to reach the
   engine.
@@ -46,6 +47,31 @@ What exists now:
   (`doc/accessible/MANUAL.txt`) and the Visual C++ runtime. The GitHub
   Actions workflow "Windows (accessible edition)" builds, tests and packages
   on `windows-latest`. Its first run passed, and the zip is its artifact.
+
+Added on 26 November 2026:
+
+* **Navigation**:
+  * Large groups are divided into sections. The sections appear in the
+    tree, and also as headings in the group's own pane, where Ctrl+Down and
+    Ctrl+Up jump between them.
+  * Each group remembers the control last used in it, and F6 returns there.
+  * Alt+Left and Alt+Right move to the same group of the previous or next
+    voice, part, kit item, effect slot or band, keeping the setting.
+  * Ctrl+F finds a setting by name, place or description.
+* **The manual** (`doc/accessible/MANUAL.txt`, about 2,000 lines). It
+  covers every key, menu, dialog, group and section, what the settings do,
+  the effects and their presets, files, MIDI, OSC, the command line and
+  troubleshooting. Its setting names were checked against UI Automation
+  listings.
+* **Smaller additions**:
+  * the bank browser plays the selected instrument with Space;
+  * the play keys are read by position, so they work on every keyboard
+    layout;
+  * automatic saving every minute, and restoring after a crash;
+  * scale files in the File menu;
+  * a notice when an engine is off in its kit item;
+  * AddSynth's voice switches work;
+  * many clearer names and values.
 
 Still open:
 
@@ -55,6 +81,12 @@ Still open:
   detune, keys and times. Many 0 to 127 parameters still read as plain
   numbers where the engine has no unit for them.
 * **The plugin (Phase 10)**: not started.
+* **Not yet in the interface**:
+  * MIDI learn;
+  * copying and pasting presets of components;
+  * adding and deleting free-mode envelope points (the engine keeps those
+    ports internal).
+  The manual says so where each would be.
 * **Upstream's own "Build CI"** also runs on the fork. Its first run found
   missing plugin stubs. With those fixed (`9e6fc63`), every job passes,
   builds and tests included: Ubuntu gcc, Ubuntu clang with lld, and macOS
