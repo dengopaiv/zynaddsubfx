@@ -80,7 +80,9 @@ Still open:
 * **Value formatting (Phase 6)** covers units from the engine plus panning,
   detune, keys and times. Many 0 to 127 parameters still read as plain
   numbers where the engine has no unit for them.
-* **The plugin (Phase 10)**: not started.
+* **The plugin (Phase 10)**: dropped (decided 26 November 2026). Neither a
+  plugin nor macOS or Linux versions are goals; the edition is a Windows
+  standalone program.
 * **Not yet in the interface**:
   * MIDI learn;
   * copying and pasting presets of components;
