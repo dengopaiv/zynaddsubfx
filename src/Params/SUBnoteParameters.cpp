@@ -126,7 +126,10 @@ static const rtosc::Ports SUBnotePorts = {
             if (!rtosc_narguments(msg))
                 d.reply(d.loc, "i", (int)roundf(96.0f * (1.0f + obj->Volume/60.0f)));
             else
+            {
                 obj->Volume = -60.0f * (1.0f - rtosc_argument(msg, 0).i / 96.0f);
+                rChangeCb;
+            }
         }},
     {"clear:", rDoc("Reset all harmonics to equal bandwidth/zero amplitude"), NULL,
         rBegin;

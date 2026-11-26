@@ -143,8 +143,13 @@ void exitprogram(Config& config)
 int main(int argc, char *argv[])
 {
 #if defined(WIN32) && defined(WIN32_UI)
-    //A windowed program has no console. Started from one, write to it.
-    if(AttachConsole(ATTACH_PARENT_PROCESS)) {
+    //A windowed program has no console. Started from one, write to it,
+    //unless the output is already redirected (to a file or a pipe).
+    HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
+    const bool redirected = err && err != INVALID_HANDLE_VALUE &&
+                            GetFileType(err) != FILE_TYPE_UNKNOWN &&
+                            GetFileType(err) != FILE_TYPE_CHAR;
+    if(!redirected && AttachConsole(ATTACH_PARENT_PROCESS)) {
         FILE *f;
         freopen_s(&f, "CONOUT$", "w", stdout);
         freopen_s(&f, "CONOUT$", "w", stderr);

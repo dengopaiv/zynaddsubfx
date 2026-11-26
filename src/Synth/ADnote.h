@@ -60,6 +60,8 @@ class ADnote:public SynthNote
         int  setupVoiceUnison(int nvoice);
         void setupVoiceDetune(int nvoice);
         void setupVoiceMod(int nvoice, bool first_run = true);
+        /**takes over changed oscillator waveforms on the sounding note*/
+        void refreshOscillators(int nvoice);
         VecWatchPoint watch_be4_add,watch_after_add, watch_punch, watch_legato;
         /**Changes the frequency of an oscillator.
          * @param nvoice voice to run computations on
@@ -195,6 +197,8 @@ class ADnote:public SynthNote
 
             /* Waveform of the Voice */
             float *OscilSmp;
+            /* the oscillators' change counts when the waveforms were taken */
+            unsigned int oscilChanges, fmChanges;
 
             /* preserved for phase mod PWM emulation. */
             int phase_offset;

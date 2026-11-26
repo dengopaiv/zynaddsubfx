@@ -39,6 +39,13 @@ class Envelope
         void watch(float time, float value);
 
     private:
+        /**Reads the points from the parameters (at the start, and again
+         * when they are changed while the note sounds)*/
+        void loadParams(void);
+        void checkUpdate(void);
+        class EnvelopeParams &envpars;
+        float envbasefreq, envbufferdt;
+
         int   envpoints;
         int   envsustain;    //"-1" means disabled
         float envdt[MAX_ENVELOPE_POINTS]; //seconds

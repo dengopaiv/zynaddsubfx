@@ -133,7 +133,12 @@ bool PaEngine::openStream(PaDeviceIndex device)
         stream = NULL;
         return false;
     }
-    cerr << "[INFO] Audio output: " << deviceLabel(device) << endl;
+    const PaStreamInfo *si = Pa_GetStreamInfo(stream);
+    cerr << "[INFO] Audio output: " << deviceLabel(device);
+    if(si)
+        cerr << ", " << (int)(si->outputLatency * 1000.0 + 0.5)
+             << " ms latency at " << (int)si->sampleRate << " Hz";
+    cerr << endl;
     return true;
 }
 

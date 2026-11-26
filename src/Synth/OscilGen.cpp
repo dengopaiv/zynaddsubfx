@@ -304,6 +304,7 @@ const rtosc::Ports OscilGen::realtime_ports{
             d.reply("/free", "sb", "fft_t", sizeof(void*), &bfrs.oscilFFTfreqs.data);
             assert(bfrs.oscilFFTfreqs.data !=*(fft_t**)rtosc_argument(m,0).b.data);
             bfrs.oscilFFTfreqs.data = *(fft_t**)rtosc_argument(m,0).b.data;
+            ++o.changes;
         }},
 
 };

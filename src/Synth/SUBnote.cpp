@@ -446,7 +446,11 @@ void SUBnote::computecurrentparameters()
 
         const float basefreq = powf(2.0f, note_log2_freq);
         const float reduceamp = setupFilters(basefreq, pos, !delta_harmonics);
-        volume = volume*oldreduceamp/reduceamp;
+        //the volume and panning as changed, on the sounding note
+        volume  = powf(10.0, pars.Volume / 20.0f)
+                  * VelF(velocity, pars.AmpVelocityScaleFunction) / reduceamp;
+        if(pars.PPanning != 0)
+            panning = pars.PPanning / 127.0f;
         oldreduceamp = reduceamp;
     }
 

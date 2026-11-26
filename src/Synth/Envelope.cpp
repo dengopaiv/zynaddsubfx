@@ -14,13 +14,30 @@
 #include <cmath>
 #include "Envelope.h"
 #include "../Params/EnvelopeParams.h"
+#include "../Misc/Time.h"
 
 namespace zyn {
 
 Envelope::Envelope(EnvelopeParams &pars, float basefreq, float bufferdt,
         WatchManager *m, const char *watch_prefix)
-    :watchOut(m, watch_prefix, "out")
+    :envpars(pars), envbasefreq(basefreq), envbufferdt(bufferdt),
+     watchOut(m, watch_prefix, "out")
 {
+    loadParams();
+
+    currentpoint = 1; //the envelope starts from 1
+    keyreleased  = false;
+    t = 0.0f;
+    envfinish = false;
+    inct      = envdt[1];
+    envoutval = 0.0f;
+}
+
+void Envelope::loadParams(void)
+{
+    EnvelopeParams &pars = envpars;
+    const float basefreq = envbasefreq, bufferdt = envbufferdt;
+
     envpoints = pars.Penvpoints;
     if(envpoints > MAX_ENVELOPE_POINTS)
         envpoints = MAX_ENVELOPE_POINTS;
@@ -72,13 +89,23 @@ Envelope::Envelope(EnvelopeParams &pars, float basefreq, float bufferdt,
     }
 
     envdt[0] = 1.0f;
+}
 
-    currentpoint = 1; //the envelope starts from 1
-    keyreleased  = false;
-    t = 0.0f;
-    envfinish = false;
-    inct      = envdt[1];
-    envoutval = 0.0f;
+//! A change made while the note sounds applies to it at once: the envelope
+//! keeps its place (the point it is at) and continues with the new values
+void Envelope::checkUpdate(void)
+{
+    if(!envpars.time || envpars.last_update_timestamp != envpars.time->time())
+        return;
+    const bool released = forcedrelease;
+    loadParams();
+    if(keyreleased) //a forced release that already ran stays done
+        forcedrelease = released;
+    if(currentpoint > envpoints - 1)
+        currentpoint = envpoints - 1;
+    if(currentpoint < 1)
+        currentpoint = 1;
+    inct = envdt[currentpoint];
 }
 
 Envelope::~Envelope()
@@ -141,6 +168,7 @@ void Envelope::watch(float time, float value)
 float Envelope::envout(bool doWatch)
 {
     float out;
+    checkUpdate();
     if(envfinish) { //if the envelope is finished
         envoutval = envval[envpoints - 1];
         if(doWatch) {
@@ -228,6 +256,7 @@ float Envelope::envout(bool doWatch)
 float Envelope::envout_dB()
 {
     float out;
+    checkUpdate();
     if(linearenvelope)
         return envout(true);
 

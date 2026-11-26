@@ -196,6 +196,11 @@ void ADnote::setupVoice(int nvoice)
     //I store the first elements to the last position for speedups
     for(int i = 0; i < OSCIL_SMP_EXTRA_SAMPLES; ++i)
         voice.OscilSmp[synth.oscilsize + i] = voice.OscilSmp[i];
+    voice.oscilChanges = pars.VoicePar[vc].OscilGn->changes;
+    {
+        const int fc = param.PextFMoscil != -1 ? param.PextFMoscil : nvoice;
+        voice.fmChanges = pars.VoicePar[fc].FmGn->changes;
+    }
 
     voice.phase_offset = (int)((pars.VoicePar[nvoice].Poscilphase
                     - 64.0f) / 128.0f * synth.oscilsize + synth.oscilsize * 4);
@@ -1743,6 +1748,36 @@ inline void ADnote::ComputeVoiceDC(int nvoice)
 
 
 
+void ADnote::refreshOscillators(int nvoice)
+{
+    Voice &voice = NoteVoicePar[nvoice];
+    const ADnoteVoiceParam &param = pars.VoicePar[nvoice];
+
+    const int vc = param.Pextoscil != -1 ? param.Pextoscil : nvoice;
+    OscilGen *osc = pars.VoicePar[vc].OscilGn;
+    if(voice.OscilSmp && osc && osc->changes != voice.oscilChanges) {
+        voice.oscilChanges = osc->changes;
+        osc->get(voice.OscilSmp, getvoicebasefreq(nvoice), param.Presonance);
+        for(int i = 0; i < OSCIL_SMP_EXTRA_SAMPLES; ++i)
+            voice.OscilSmp[synth.oscilsize + i] = voice.OscilSmp[i];
+    }
+
+    if(!voice.FMSmp || voice.FMVoice >= 0)
+        return;
+    const int fc = param.PextFMoscil != -1 ? param.PextFMoscil : nvoice;
+    OscilGen *fm = pars.VoicePar[fc].FmGn;
+    if(fm && fm->changes != voice.fmChanges) {
+        voice.fmChanges = fm->changes;
+        float freq = 1.0f;
+        if(fm->Padaptiveharmonics != 0 || voice.FMEnabled == FMTYPE::MIX
+           || voice.FMEnabled == FMTYPE::RING_MOD)
+            freq = getFMvoicebasefreq(nvoice);
+        fm->get(voice.FMSmp, freq);
+        for(int i = 0; i < OSCIL_SMP_EXTRA_SAMPLES; ++i)
+            voice.FMSmp[synth.oscilsize + i] = voice.FMSmp[i];
+    }
+}
+
 /*
  * Compute the ADnote samples
  * Returns 0 if the note is finished
@@ -1759,12 +1794,34 @@ int ADnote::noteout(float *outl, float *outr)
     memset(bypassr, 0, synth.bufferbytes);
 
     //Update Changed Parameters From UI
+    //(volume and panning only in the moment they are changed: a random
+    //panning stays as it was chosen at the start of the note)
+    const ADnoteGlobalParam &gp = pars.GlobalPar;
+    if(gp.time && gp.last_update_timestamp == time.time()) {
+        NoteGlobalPar.Volume = dB2rap(gp.Volume)
+                               * VelF(velocity, gp.PAmpVelocityScaleFunction);
+        if(gp.PPanning)
+            NoteGlobalPar.Panning = gp.PPanning / 128.0f;
+    }
     for(unsigned nvoice = 0; nvoice < NUM_VOICES; ++nvoice) {
         if((NoteVoicePar[nvoice].Enabled != ON)
            || (NoteVoicePar[nvoice].DelayTicks > 0))
             continue;
+        const ADnoteVoiceParam &vp = pars.VoicePar[nvoice];
+        if(vp.time && vp.last_update_timestamp == time.time()) {
+            Voice &vce = NoteVoicePar[nvoice];
+            vce.Volume = dB2rap(vp.volume)
+                         * VelF(velocity, vp.PAmpVelocityScaleFunction);
+            if(vp.volume == -60.0f)
+                vce.Volume = 0;
+            if(vp.PVolumeminus)
+                vce.Volume = -vce.Volume;
+            if(vp.PPanning)
+                vce.Panning = vp.PPanning / 128.0f;
+        }
         setupVoiceDetune(nvoice);
         setupVoiceMod(nvoice, false);
+        refreshOscillators(nvoice);
     }
 
     computecurrentparameters();

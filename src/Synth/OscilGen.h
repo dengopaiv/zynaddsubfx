@@ -233,6 +233,9 @@ class OscilGen:public Presets, NoCopyNoMove
         unsigned int randseed;
     public:
         const SYNTH_T &synth;
+        //! counted up each time the synthesizer gets a new waveform, so
+        //! that sounding notes take it over
+        unsigned int changes = 0;
 };
 
 typedef float filter_func_t(unsigned int, float, float);

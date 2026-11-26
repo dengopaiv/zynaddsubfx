@@ -749,6 +749,10 @@ while the note is held, as on a real instrument: press F5 twice to hear the
 start again, or lengthen the sustain in the amplitude envelope while you
 work on the rest.
 
+Nearly every change is heard on the held note at once; the few that wait
+for the next note (such as unison, or turning a voice on) are listed in
+section 10.4. For those, press F5 twice.
+
 Other ways to hear a sound while editing: hold a key of a MIDI keyboard
 (or its sustain pedal) with one hand and edit with the other; or set the
 part's Synthesis polyphony type to Latch (12.3), play notes with the play
@@ -858,10 +862,34 @@ says the value in that unit.
 
 --- 10.4 Changes and the sound
 
-Most settings change the sound at once, even while a note sounds. A few
-take effect with the next note. PADsynth's settings that shape its samples
-take effect only after "Apply changes" (chapter 17). The Settings group's
-sample rate, buffer size and oscillator size take effect after a restart.
+Most settings change the sound at once, even while a note sounds, so you
+can hold a note (F5, section 9.7) and listen while you move a slider. The
+sound output on Windows is WASAPI, with a delay of about 20 to 30
+milliseconds from a change to your ears.
+
+Heard at once, on notes that are already sounding:
+
+- volumes and panning: Master, parts, and the AddSynth, SUBsynth and
+  PADsynth volume, velocity sensing and panning (global and per voice). A
+  random panning (value 0) stays where the note began.
+- all envelopes: attack, decay, sustain, release, and the points of a
+  free envelope. The envelope continues from where it is with the new
+  values, so a change to the attack is heard only while the note is still
+  in its attack: for the attack, press F5 twice.
+- the oscillators: harmonics, base function, and all other waveform
+  settings of AddSynth voices and their modulators.
+- filters, LFOs, detune, modulation, SUBsynth harmonics and bandwidth,
+  controllers, and all effects.
+
+Heard from the next note:
+
+- whether a voice is on or off, unison, a voice's oscillator source and
+  delay, and the polyphony and kit settings of a part.
+- PADsynth's settings that shape its samples: they need "Apply changes"
+  (chapter 17).
+
+The Settings group's sample rate, buffer size and oscillator size take
+effect after a restart.
 
 == 11. Master
 -------------

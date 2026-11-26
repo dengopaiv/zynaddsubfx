@@ -255,6 +255,14 @@ inline void PADnote::fadein(float *smps)
 
 void PADnote::computecurrentparameters()
 {
+    //the volume and panning as changed, on the sounding note
+    if(pars.time && pars.last_update_timestamp == time.time()) {
+        NoteGlobalPar.Volume = 4.0f
+                               * powf(0.1f, 3.0f * (1.0f - pars.PVolume / 96.0f))
+                               * VelF(velocity, pars.PAmpVelocityScaleFunction);
+        if(pars.PPanning)
+            NoteGlobalPar.Panning = pars.PPanning / 128.0f;
+    }
     const float relfreq = getFilterCutoffRelFreq();
     const float globalpitch = 0.01f * (NoteGlobalPar.FreqEnvelope->envout()
                            + NoteGlobalPar.FreqLfo->lfoout()

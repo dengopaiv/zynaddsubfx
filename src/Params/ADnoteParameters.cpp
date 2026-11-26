@@ -136,7 +136,10 @@ static const Ports voicePorts = {
             if (!rtosc_narguments(msg))
                 d.reply(d.loc, "i", (int)roundf(127.0f * (1.0f + obj->volume/60.0f)));
             else
+            {
                 obj->volume = -60.0f * (1.0f - rtosc_argument(msg, 0).i / 127.0f);
+                rChangeCb;
+            }
         }},
     {"volume::f", rShort("volume") rProp(parameter) rUnit(dB)
         rDefault(-0x1.983064p+3) rLinear(-60.0f, 0.0f) rDoc("Part Volume"), NULL,
@@ -147,6 +150,7 @@ static const Ports voicePorts = {
                d.reply(d.loc, "f", obj->volume);
             } else if (rtosc_narguments(msg) == 1 && rtosc_type(msg, 0) == 'f') {
                obj->volume = rtosc_argument(msg, 0).f;
+               rChangeCb;
                d.broadcast(d.loc, "f", ((obj->volume)));
             }
         }},
@@ -366,7 +370,10 @@ static const Ports globalPorts = {
             if (!rtosc_narguments(msg))
                 d.reply(d.loc, "i", (int)roundf(96.0f * (1.0f + (obj->Volume - 12.0412f)/60.0f)));
             else
+            {
                 obj->Volume = 12.0412f - 60.0f * (1.0f - rtosc_argument(msg, 0).i / 96.0f);
+                rChangeCb;
+            }
         }},
     rParamZyn(Fadein_adjustment, rDefault(FADEIN_ADJUSTMENT_SCALE),
         "Adjustment for anti-pop strategy."),
