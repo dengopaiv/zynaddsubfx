@@ -1,180 +1,2082 @@
-ZynAddSubFX Accessible Edition
-==============================
+ZynAddSubFX Accessible Edition: the manual
+==========================================
 
-ZynAddSubFX is a software synthesizer with three engines (AddSynth,
-SubSynth and PADsynth), 16 parts, effects and microtonal tuning. This
-edition runs on Windows and is made of standard Windows controls, so NVDA,
-JAWS and Narrator read it without add-ons. Everything can be done from the
-keyboard.
+Version 3.0.7 (development), November 2026.
 
-The synthesizer itself is upstream ZynAddSubFX, unchanged in sound. Only
-the interface is new: the graphical interfaces were removed.
+This manual describes everything in ZynAddSubFX Accessible Edition: how to
+start it, how to move around it, every key, every menu command and dialog,
+how the synthesizer is built and what its settings do, and what to do when
+something goes wrong. It is long on purpose. Read the first parts to get
+going and keep the rest for reference.
 
-
-1. Starting
------------
-
-Unzip the package anywhere and run zynaddsubfx.exe. Nothing needs to be
-installed. The instrument banks are in the "banks" folder next to it.
-
-The program opens your default sound output (through WASAPI) and listens
-to every MIDI input that is connected. To choose others, use Options,
-Audio and MIDI (Ctrl+Comma). The choices are kept for next time.
-
-Settings are kept in %APPDATA%\ZynAddSubFX. Automatic saves (every minute,
-so a crash loses little) and the bank cache are in
-%LOCALAPPDATA%\ZynAddSubFX. If the program did not close properly, it
-offers to restore the automatic save when it starts.
+Every chapter heading starts with two equals signs and the chapter number,
+for example "== 6.". To jump to chapter 6 in a text editor, search for
+"== 6." (with the full stop). Sections inside chapters start with three
+dashes, for example "--- 6.3".
 
 
-2. The window
--------------
+Contents
+--------
 
-The window has three parts:
+Part one: getting started
+  1.  About this edition
+  2.  Installing and starting
+  3.  Sound and MIDI
+  4.  A first session, step by step
 
-- the menu bar (Alt);
-- the Structure tree on the left;
-- the settings of the group chosen in the tree, on the right.
+Part two: the interface
+  5.  The window
+  6.  Moving around
+  7.  The controls
+  8.  The menus
+  9.  The dialogs and other windows
 
-F6 moves between the tree and the settings. Tab and Shift+Tab move between
-the controls of the settings.
+Part three: the synthesizer
+  10. How ZynAddSubFX is organised
+  11. Master
+  12. Parts
+  13. Kit items, kit mode and drum mode
+  14. AddSynth
+  15. The oscillator
+  16. SubSynth
+  17. PADsynth
+  18. Envelopes
+  19. LFOs
+  20. Filters
+  21. Controllers: wheels, pedals and portamento
+  22. Effects
+  23. Tuning (microtonal scales)
+  24. Settings
 
-The tree holds the whole synthesizer:
-
-- Master: master volume, key shift, tempo, and Stop all sound.
-- Part 1 to Part 16, named after the instrument they hold. A part that is
-  off says so. In a part: Kit item 1 to 16 (most instruments use only the
-  first), and in a kit item the three engines: AddSynth, SubSynth and
-  PADsynth.
-- AddSynth: Global and Voice 1 to 8. Each has amplitude, frequency and
-  filter settings with their envelopes and LFOs, and an Oscillator.
-- System effect 1 to 4 and Insertion effect 1 to 8, named after their
-  effect type ("System effect 1: Reverb"). Choose the type in the effect's
-  settings; its own settings then appear below it in the tree.
-- Tuning: microtonal scales.
-- Controllers: how the part reacts to MIDI controllers.
-- Settings: sample rate, buffer size and other program settings (most take
-  effect after a restart).
-
-In the tree, Right arrow opens a group, Left closes it, and typing the
-start of a name jumps to it.
-
-
-3. Controls
------------
-
-Every setting is a standard control, named after what it does. Its longer
-explanation from the engine is the control's description, which screen
-readers read after a pause, or on request (NVDA+Tab in NVDA).
-
-Sliders say their value in its unit where the engine has one: decibels,
-milliseconds, hertz, semitones, percent, "centre" for panning, note names
-for key ranges.
-
-- Up and Right arrow raise a slider by one step, Down and Left lower it.
-- Page Up and Page Down move ten steps, Home and End go to the ends.
-- Enter types an exact value.
-- Backspace resets a slider, a list or a check box to its default.
-
-Lists (combo boxes) choose among named options: arrows change the choice.
-Check boxes switch with Space.
-
-Some groups have buttons for actions, for example "Convert to sine
-harmonics" in an Oscillator, "Apply changes" in PADsynth (PADsynth settings
-take effect only after this), and "Stop all sound" in Master.
+Part four: reference
+  25. Files and folders
+  26. MIDI reference
+  27. Command line
+  28. OSC, for advanced use
+  29. Troubleshooting and questions
+  30. All keys
+  31. Building from source, and the test tools
+  32. Credits and licence
 
 
-4. Editors for lists of values
-------------------------------
-
-Some settings are lists of many values: the 128 harmonics of an
-oscillator, the points of an envelope in free mode, the points of the
-resonance curve, the key mapping of a tuning. Each is a pair of sliders:
-
-- the first chooses which element ("Harmonic 5 of 128");
-- the second edits it ("Harmonic magnitude, Harmonic 5").
-
-Tuning has two text boxes: Tunings, one scale step per line (cents with a
-decimal point, like 100.0, or a ratio, like 3/2; the last line is the
-octave), and Key mapping. In these boxes Enter starts a new line,
-Ctrl+Enter applies the text, and Tab moves on.
+PART ONE: GETTING STARTED
+=========================
 
 
-5. Instruments and files
+== 1. About this edition
 ------------------------
 
-File, Instrument banks (Ctrl+B) opens the bank browser. It stays open
-while you work:
+ZynAddSubFX is a free software synthesizer, started by Nasca Octavian Paul
+in 2002 and maintained today by Mark McCurry and many contributors. It has
+three sound engines (AddSynth, SubSynth and PADsynth), 16 parts that can
+each play their own instrument, system and insertion effects, microtonal
+tuning, and well over a thousand settings.
 
-- Banks: the instrument banks.
-- Instruments: the instruments of the chosen bank. Hold Space to hear a
-  note of the selected instrument on the chosen part.
-- Into part: where Enter (or Load) puts the instrument. Loading switches
-  the part on.
+The Accessible Edition is ZynAddSubFX for Windows with a new user interface
+made only of standard Windows controls: a tree, sliders, lists, check boxes,
+edit boxes and buttons. Screen readers (NVDA, JAWS, Narrator) read them
+without any add-on or script, and everything can be done from the keyboard.
 
-Other files:
+What is the same as upstream ZynAddSubFX:
 
-- Ctrl+O and Ctrl+S open and save everything (.xmz files).
-- Ctrl+I opens an instrument file (.xiz) into the current part, the part
-  chosen in the tree.
-- Ctrl+Shift+S saves the current part as an instrument.
-- Ctrl+N resets everything.
-- Ctrl+Z and Ctrl+Y undo and redo changes.
+- the sound. The synthesizer code is upstream's, unchanged, tracking its
+  latest development version;
+- the file formats. Instruments (.xiz), complete sessions (.xmz) and scales
+  (.xsz, .scl, .kbm) open in both directions with any other ZynAddSubFX;
+- the instrument banks shipped with it.
 
+What is different:
 
-6. Playing without a MIDI keyboard
-----------------------------------
-
-Options, Play from computer keyboard (Ctrl+K) opens a small window that
-plays the current part:
-
-- the row from Z to slash plays one octave, with the black keys on the
-  row above (S, D, G, H, J ...);
-- the row from Q to P plays the next octave, with the black keys on the
-  number row;
-- Page Up and Page Down change the octave;
-- Up and Down change the velocity by 10;
-- Escape closes the window.
-
-
-7. Keys
--------
-
-- F1: the list of keys
-- F6: tree or settings
-- Ctrl+N: new
-- Ctrl+O: open
-- Ctrl+S: save
-- Ctrl+B: instrument banks
-- Ctrl+I: open instrument into the current part
-- Ctrl+Shift+S: save the current part as an instrument
-- Ctrl+K: play from the computer keyboard
-- Ctrl+Z, Ctrl+Y: undo, redo
-- Ctrl+Comma: audio and MIDI devices
-- Enter on a slider: type a value
-- Backspace on a slider, list or check box: default
+- the graphical interfaces of upstream (FLTK, NTK and Zyn-Fusion) are gone,
+  and so are pictures of knobs, graphs, meters and the virtual keyboard
+  picture. Everything they showed is available as values instead;
+- the interface is built from the synthesizer's own descriptions of its
+  settings, so every setting has a name, a description and a value;
+- Windows sound and MIDI work properly: WASAPI output by default, a choice
+  of every output device, MIDI input from every connected device or one of
+  your choice, including pitch bend;
+- everything is saved automatically every minute, against crashes;
+- the plugin versions (VST, LV2) have no interface in this edition.
 
 
-8. Command line
+== 2. Installing and starting
+-----------------------------
+
+--- 2.1 What you need
+
+Windows 10 or 11, 64-bit. Nothing has to be installed: the package carries
+everything it needs, including the Microsoft Visual C++ runtime libraries.
+
+--- 2.2 Installing
+
+1. Unzip ZynAddSubFX-Accessible-3.0.7-win64.zip anywhere you like, for
+   example in your Documents folder or on a USB stick. You do not need
+   administrator rights.
+2. The folder holds:
+   - zynaddsubfx.exe, the program;
+   - several .dll files it needs (leave them next to the program);
+   - banks, the folder of instrument banks;
+   - MANUAL.txt, this manual;
+   - COPYING.txt, the licence, and AUTHORS.txt, the people who made it.
+
+To uninstall, delete the folder. To also remove your settings and automatic
+saves, delete the folders named in section 25.1.
+
+--- 2.3 Starting
+
+Run zynaddsubfx.exe. The window "ZynAddSubFX Accessible Edition" opens with
+the focus in the Structure tree, on Master. The status bar says "Ready. F1
+lists the keys."
+
+The program starts with the sound output and MIDI inputs it used last time,
+or the defaults on the first start (chapter 3). Part 1 is on and plays a
+simple sine sound until you load an instrument.
+
+--- 2.4 Closing
+
+Alt+F4, or File, Exit. Your audio and MIDI choices and the Settings group
+are saved. The music you made is not saved into a file of your own unless
+you save it with Ctrl+S (chapter 25); on a normal exit the automatic save
+(2.5) is deleted.
+
+--- 2.5 Automatic saves, and restoring after a crash
+
+While the program runs, it saves everything every 60 seconds to an
+automatic save (section 25.3). If the program crashed or the computer lost
+power, the next start asks: "ZynAddSubFX did not close properly last time.
+Restore the settings it saved automatically?" Yes restores everything as it
+was at the last automatic save (at most a minute old). No deletes that
+automatic save.
+
+The interval can be changed, or automatic saving switched off, with the
+command line option -A (chapter 27).
+
+
+== 3. Sound and MIDI
+--------------------
+
+--- 3.1 Sound output
+
+By default the program plays through the default sound device of Windows,
+using WASAPI, the modern Windows audio system with low latency. If your
+device runs at another sample rate than the synthesizer (44100 Hz by
+default), Windows converts it, so any device works.
+
+To choose another output: Options, Audio and MIDI (Ctrl+Comma). The first
+list, "Audio output", has:
+
+- "Default output": the default device of WASAPI (recommended);
+- every output device, named "host API: device", for example
+  "Windows WASAPI: Speakers (Realtek Audio)". The host APIs are:
+  - MME: the oldest Windows audio system. Works everywhere, high latency;
+  - Windows DirectSound: older, medium latency;
+  - Windows WASAPI: the current system, low latency (recommended);
+  - Windows WDM-KS: kernel streaming, lowest latency, but takes the device
+    for itself and does not work with every device.
+
+Choose OK. The sound restarts on the new device at once. If a device cannot
+be opened, the program falls back to the default device, so there is always
+sound.
+
+The choice is saved. If the device is missing at the next start (a USB
+interface not plugged in), the default device is used for that session.
+
+--- 3.2 MIDI input
+
+By default the program listens to every MIDI input that is connected when
+it starts. The second list of Options, Audio and MIDI, "MIDI input", has
+"Every MIDI input" and each input by name. A keyboard plugged in after
+starting is found when you open Audio and MIDI and choose OK again (the
+inputs are scanned anew).
+
+Everything a MIDI keyboard sends is read: notes and velocity, controllers
+(chapter 26 says which controller does what), program change, pitch bend,
+and aftertouch. System exclusive messages (SysEx) are not read.
+
+--- 3.3 MIDI channels and parts
+
+Each of the 16 parts listens to one MIDI channel. By default part 1 listens
+to channel 1, part 2 to channel 2 and so on. A keyboard sending on channel 1
+therefore plays part 1. To play another part from the same keyboard, change
+that part's "Active MIDI channel" (chapter 12), or change the channel your
+keyboard sends on. Several parts listening to the same channel play
+together (layering).
+
+--- 3.4 No MIDI keyboard
+
+You can play from the computer keyboard: Options, Play from computer
+keyboard (Ctrl+K). See section 9.6.
+
+--- 3.5 Latency and the buffer
+
+The time between pressing a key and hearing it depends on the buffer size,
+in Settings, Audio (chapter 24): "Size of processed audio buffer", 256
+samples by default (about 6 milliseconds at 44100 Hz). Smaller buffers lower
+the latency but need a faster computer; if the sound crackles, raise it.
+The sample rate and buffer size take effect after a restart.
+
+
+== 4. A first session, step by step
+-----------------------------------
+
+This walk-through uses only the keyboard.
+
+1. Start the program. The focus is in the Structure tree, on "Master".
+2. Press Ctrl+B. The Instrument banks dialog opens. The focus is in the
+   Banks list.
+3. Press Down Arrow to go through the banks: Arpeggios, Bass, Brass, Choir
+   and Voice, and so on. Stop on "Brass".
+4. Press Tab. The focus is in the Instruments list, which now holds the
+   Brass instruments, for example "FM Thrumpet (slot 1)".
+5. Hold Space. The selected instrument is loaded into part 1 (the "Into
+   part" list says which part; you hear "Loading FM Thrumpet into part 1")
+   and plays a note while Space is held.
+6. Press Down Arrow to choose another instrument, hold Space again to hear
+   it. Repeat until you like one. The last one you heard stays loaded.
+   Enter also loads the selected instrument, without playing it.
+7. Press Escape to close the bank browser. The focus is back in the tree.
+   The tree now says "Part 1: FM Thrumpet" (or the name you chose).
+8. Play it with your MIDI keyboard, or press Ctrl+K and play with the
+   letter keys (Z, X, C, V ... is a row of white keys; S, D, G, H, J the
+   black keys). Escape closes the play window.
+9. Now change the sound. In the tree, go to "Part 1: ...", press Right
+   Arrow to open it, go down to "Kit item 1", Right Arrow, and choose the
+   engine the instrument uses: AddSynth, SubSynth or PADsynth (an
+   instrument may use more than one; an engine that is off says so at the
+   top of its settings). Open it. For AddSynth, open Global.
+10. Choose "Amplitude envelope" and press F6. The focus moves to its
+    settings. Tab to "Attack Time", press Up Arrow a few times, and play:
+    the notes now fade in more slowly.
+11. Press Ctrl+Z to undo the change, or Backspace on the slider to put it
+    back to its default.
+12. Press Ctrl+Shift+S to save the changed instrument as an .xiz file, or
+    Ctrl+S to save everything (all parts, effects, tuning) as an .xmz file.
+
+That is the whole cycle: choose a sound, play, change, save.
+
+
+PART TWO: THE INTERFACE
+=======================
+
+
+== 5. The window
+----------------
+
+The window "ZynAddSubFX Accessible Edition" has four parts:
+
+1. The menu bar: File, Edit, Go, Options, Help. Alt or F10 moves into it.
+   Chapter 8 lists every command.
+2. The Structure tree, on the left: every group of settings of the whole
+   synthesizer, nested (chapter 10 explains the structure).
+3. The settings pane, on the right: the settings of the group chosen in the
+   tree, one control per setting.
+4. The status bar at the bottom: the last message, for example "Saved
+   song.xmz". It says the same thing that was announced.
+
+The settings pane starts with a heading: the full name of the group, for
+example "Master, Part 1, Kit item 1, AddSynth, Voice 1, Frequency". Under
+it come the controls. A screen reader's review cursor or object navigation
+reads the heading; Tab does not stop on it.
+
+The heading also says:
+
+- when a group has no settings of its own: "no settings of its own. Open it
+  in the tree to see its parts.";
+- when a large group is shown whole, how many sections it has (6.3);
+- when the group belongs to an engine that is switched off in its kit item:
+  "PADsynth is off in this kit item, so its settings show no values. Switch
+  it on with "PADsynth enable" in the kit item." (chapter 13).
+
+
+== 6. Moving around
+-------------------
+
+--- 6.1 The tree
+
+The tree is a standard Windows tree view:
+
+- Up Arrow and Down Arrow: the previous or next group;
+- Right Arrow: open a group (or move into it when it is open);
+- Left Arrow: close a group (or move to the group it belongs to);
+- Home and End: the first and the last group;
+- typing the start of a name jumps to the next group with that name, for
+  example "v" for "Voice";
+- Asterisk on the number pad, which in other trees opens everything below
+  a group, is switched off here: below Master there are millions of
+  groups. The program says so when you press it.
+
+Choosing a group in the tree shows its settings in the pane at once. The
+focus stays in the tree, so you can go through groups quickly.
+
+The tree names some groups after what they hold:
+
+- parts after their instrument: "Part 1: Bass 1". A part that is switched
+  off says so: "Part 2, off";
+- effect slots after their effect: "System effect 1: Reverb", or
+  "Insertion effect 2, off" when no effect is chosen.
+
+--- 6.2 Between the tree and the settings: F6
+
+F6 (or Shift+F6) moves between the tree and the settings pane. Going into
+the pane, the program says which group you are in, and the focus goes to
+the control you used last in that group; the first time, to the first
+control.
+
+Each group remembers its own last control, for the whole session. So you
+can go from the Amplitude envelope (where you last used "Release Time") to
+an LFO and back, and F6 takes you to "Release Time" again.
+
+Tab also moves from the tree into the pane, to its first control, and on
+through the controls; Shift+Tab goes back. After the last control, Tab goes
+back to the tree.
+
+--- 6.3 Sections of large groups
+
+Some groups have many settings: PADsynth has 44, an AddSynth voice more than
+50. These groups are divided into sections. For example PADsynth has:
+
+  Output, Punch, Filter velocity, Frequency, Harmonic profile, Overtones,
+  Bandwidth, Sample.
+
+The sections appear in two ways at once:
+
+1. In the tree, as the first groups inside the large group. In the tree,
+   "PADsynth" holds "Output", "Punch", ... "Sample", followed by its
+   envelopes, LFOs and filter. Choosing a section shows only its settings:
+   a short pane, quick to go through with Tab.
+2. In the large group's own pane, which shows all its settings, each
+   section starting with a heading "Section: Punch". The pane's heading
+   says how many sections there are. In that pane:
+   - Ctrl+Down Arrow jumps to the first setting of the next section;
+   - Ctrl+Up Arrow jumps to the start of the current section, or, when you
+     are already there, to the start of the previous one.
+   The program says the section's name, for example "Section Punch, Punch
+   Strength". At the last section it says "Last section", at the first
+   "First section".
+   The same commands are in the Go menu: Next section of the settings,
+   Previous section of the settings.
+
+Choose whichever suits the moment: the sections in the tree for a short
+list, the whole group with Ctrl+arrows to see everything in context.
+
+The groups with sections are: PADsynth, AddSynth Global, AddSynth voices,
+SubSynth, parts, Controllers, oscillators, filters, Settings and Tuning.
+Each lists its sections in its chapter. A setting that a newer version of
+the synthesizer adds and that no section claims yet appears in a section
+named "Other", so nothing is ever hidden.
+
+--- 6.4 The same group in the next voice, part or effect: Alt+Left and
+        Alt+Right
+
+Many groups come in numbered sets: Voice 1 to 8 of AddSynth, Part 1 to 16,
+Kit item 1 to 16, System effect 1 to 4, Insertion effect 1 to 8, Part
+effect 1 to 3, the bands of an EQ, the vowels and formants of a formant
+filter.
+
+Alt+Right Arrow goes to the same group of the next one, Alt+Left Arrow of
+the previous one. Everything else stays the same:
+
+- from "Voice 1, Frequency" Alt+Right goes to "Voice 2, Frequency";
+- from "Voice 3, Amplitude envelope" to "Voice 4, Amplitude envelope";
+- from "Part 2" to "Part 3";
+- from "Part 1, Kit item 1, AddSynth, Global" to "Part 1, Kit item 2,
+  AddSynth, Global".
+
+The number that changes is always the one deepest in the group's place: in
+"Voice 3, Amplitude envelope" it is the voice, in "Part 1, Kit item 1" the
+kit item. Go up to "Part 1" itself to step through the parts.
+
+When the focus is in the settings, it stays on the same setting. For
+example on "Fine Detune" of Voice 1, Alt+Right takes you to "Fine Detune" of
+Voice 2, and the program says the new group's name. That makes comparing
+voices quick: Alt+Right, listen to the value, Alt+Right again.
+
+When the focus is in the tree, the tree moves to that group.
+
+After the last one (Voice 8, Part 16 ...) the program says "No next group of
+this kind"; before the first, "No previous group of this kind". Effect slots
+only show the settings of their chosen effect type, so going from a Reverb
+slot's "Reverb" group to a slot with another effect says there is no such
+group.
+
+The same commands are in the Go menu.
+
+--- 6.5 Finding a setting: Ctrl+F
+
+Edit, Find a setting (Ctrl+F) opens the "Find a setting" dialog:
+
+1. Type part of a setting's name, for example "detune" or "release".
+   Several words must all match, in any order: "voice 3 detune" finds the
+   detune settings of voice 3. The search covers the setting's name, the
+   group it is in, and its description, and ignores upper and lower case.
+2. The list "Settings found" fills as you type. Each entry names the
+   setting and where it is: "Fine Detune, in Part 1, Kit item 1, AddSynth,
+   Voice 3, Frequency". Under the list the dialog says how many were found
+   (at most 300 are listed; type more to narrow it down).
+3. Tab to the list, choose an entry with the arrow keys and press Enter (or
+   Go to). The dialog closes, the tree goes to that group (its section, for
+   large groups) and the focus is on that setting.
+
+Find searches the settings of the master, the effects, and the part and kit
+item you are in (or Part 1, Kit item 1, when you are not in a part). The
+other parts and kit items have the same settings: go there first, then
+search.
+
+--- 6.6 Inside the settings pane
+
+- Tab and Shift+Tab: the next or previous control;
+- the arrow keys change the control that has the focus (they do not move
+  to the next control: that is what Tab is for);
+- Ctrl+Down and Ctrl+Up: the next or previous section (6.3);
+- Alt+Left and Alt+Right: the same group of the previous or next voice,
+  part ... (6.4);
+- F6: back to the tree.
+
+When the focus moves to a control that is not visible, the pane scrolls to
+it. The mouse wheel scrolls the pane too.
+
+
+== 7. The controls
+------------------
+
+Every setting is one of seven kinds of standard control. Each has a name
+(what the setting is), a value, and a description: the synthesizer's own
+explanation. Screen readers read the description after the name and value,
+or when you ask for it (in NVDA, NVDA+Tab reads the focused control again
+with its description; the NVDA setting "Report object descriptions" decides
+whether it is read every time).
+
+--- 7.1 Sliders
+
+Most settings are sliders. A slider says its value in the setting's unit
+where the program knows it:
+
+- decibels: "Volume control, 8.3 dB";
+- milliseconds and seconds: "Attack Time, 250 ms", "Release Time, 1.25 s";
+- hertz and kilohertz: "Frequency of LFO, 3.50 Hz", "1.20 kHz";
+- semitones and cents: "Key shift, +2 semitones", "Range of MIDI Pitch
+  Wheel, 200 cents";
+- panning: "centre", "left 50 %", "right 25 %", and "random" where the
+  setting uses its lowest value for random panning;
+- detune: "0, none", "+120";
+- keys: "C4 (60)", where 60 is the MIDI note number;
+- otherwise the plain number the synthesizer uses, often from 0 to 127.
+
+Keys:
+
+- Up Arrow or Right Arrow: one step up;
+- Down Arrow or Left Arrow: one step down;
+- Page Up and Page Down: ten steps (a tenth of the range);
+- Home: the lowest value; End: the highest;
+- Enter: type an exact value (section 9.1);
+- Backspace: back to the default value. The program says "Default,
+  value". Some settings have no known default; then it says "No default
+  known".
+
+A slider of a setting with decimals (times, frequencies, decibels) has 200
+steps over its whole range; some ranges are logarithmic (each step a little
+larger than the last), which suits times and frequencies. To set a value
+more exactly than the steps allow, press Enter and type it.
+
+The value you hear is always the synthesizer's exact value. When something
+else changes a setting (a MIDI controller, undo, loading a file), the
+slider moves with it; if it has the focus, the screen reader says the new
+value.
+
+--- 7.2 Lists (combo boxes)
+
+A setting with named choices is a list: "Detune Scaling Type, L35cents",
+"Shape of LFO, sine", "Effect type, Reverb". Up and Down Arrow change the
+choice at once (the sound follows); Alt+Down Arrow opens the list to look
+through it; Home and End go to the first and last choice. Backspace puts the
+default choice back.
+
+--- 7.3 Check boxes
+
+A setting that is on or off is a check box: "Part enable, checked". Space
+switches it. Backspace puts the default back.
+
+--- 7.4 Edit boxes
+
+Text settings (an instrument's author, comments, name) are edit boxes. Type
+the text; it takes effect when you press Enter (the program says "Set") or
+leave the box with Tab.
+
+--- 7.5 Multi-line text boxes
+
+The tuning of a scale and its key mapping are texts of several lines
+(chapter 23). In these boxes:
+
+- Enter starts a new line;
+- Ctrl+Enter applies the text (the program says "Applied"); leaving the box
+  applies it too;
+- Tab and Shift+Tab move to the next or previous control, as everywhere.
+
+If the synthesizer cannot read the text, it says why, for example "Parse
+Error: The input may contain only numbers (like 232.59) or divisions (like
+121/64)".
+
+--- 7.6 Buttons
+
+Some groups have buttons for actions: "Convert to sine harmonics", "Apply
+changes (rebuild the PADsynth samples)", "Stop all sound". Space or Enter
+presses them. The program says "...: done".
+
+--- 7.7 Element choosers: lists of values
+
+A few settings are not one value but a list of many: the 128 harmonics of an
+oscillator, the points of a free-mode envelope or of the resonance curve,
+the keys of a key mapping, the voices of AddSynth, the parts sending to a
+system effect. Each is shown as a pair of controls:
+
+1. the chooser, a slider, for example "Harmonic number, for Harmonic
+   magnitude", with the value "Harmonic 5 of 128". Up and Down Arrow choose
+   the element;
+2. the value of that element, right after it, for example "Harmonic
+   magnitude, Harmonic 5". It is a slider, or a list or a check box when
+   the setting has named choices or is on or off ("Voice enabled, Voice 2,
+   checked"). Its name follows the chooser.
+
+So: choose the element on the first control, Tab to the second, set its
+value; Shift+Tab back to the chooser for the next element.
+
+--- 7.8 Messages
+
+The program speaks short messages: what a command did ("Saved song.xmz",
+"Loading Bass 1 into part 1"), the section you jumped to, the octave of the
+play window, errors. They are shown in the status bar as well.
+
+How they are spoken: as a UI Automation notification (Narrator and JAWS
+read these) and, for NVDA, by putting the message in front of the focused
+control's name for a moment ("Saved song.xmz, Attack Time"). If you hear a
+control's name with a message in front of it, that is why; after a second
+and a half the name is back to normal.
+
+
+== 8. The menus
 ---------------
 
-zynaddsubfx.exe --help lists the options. Useful ones:
+Alt or F10 opens the menu bar; the underlined letters (Alt+F for File, and
+so on) open a menu directly. Shortcuts are shown next to each command.
 
-- -U: no window (the synthesizer only, controlled over OSC or MIDI)
-- -L file.xiz: load an instrument
-- -l file.xmz: load a master file
-- -O NULL: no sound output (for tests)
-- -P port: the OSC port to listen on
+--- 8.1 File
 
-Started from a console, the program writes its messages there.
+- New (Ctrl+N): reset everything to the start: all parts, effects and
+  tuning. Asks first.
+- Open... (Ctrl+O): open a complete session (.xmz).
+- Save as... (Ctrl+S): save the complete session (.xmz): all 16 parts with
+  their instruments, all effects, the tuning, the master settings.
+- Instrument banks... (Ctrl+B): the bank browser (9.4).
+- Open instrument into current part... (Ctrl+I): open an instrument file
+  (.xiz) into the current part, the part of the group chosen in the tree
+  (Part 1 when you are not in a part).
+- Save current part as instrument... (Ctrl+Shift+S): save the current part
+  as an instrument file (.xiz).
+- Open Scala scale (.scl)...: open a scale for the tuning (chapter 23).
+  Then switch Tuning on.
+- Open Scala keyboard mapping (.kbm)...: open a keyboard mapping for the
+  tuning.
+- Open scale (.xsz)..., Save scale as (.xsz)...: ZynAddSubFX's own scale
+  files.
+- Exit (Alt+F4).
+
+--- 8.2 Edit
+
+- Undo (Ctrl+Z): take back the last change to a setting. Repeat for
+  earlier changes.
+- Redo (Ctrl+Y): do an undone change again.
+- Find a setting... (Ctrl+F): section 6.5.
+
+--- 8.3 Go
+
+- Tree or settings (F6): section 6.2.
+- Previous group of the same kind (Alt+Left), Next group of the same kind
+  (Alt+Right): section 6.4.
+- Next section of the settings (Ctrl+Down), Previous section of the
+  settings (Ctrl+Up): section 6.3. The keys work while the focus is in the
+  settings; the menu commands work from anywhere.
+
+--- 8.4 Options
+
+- Play from computer keyboard... (Ctrl+K): section 9.6.
+- Audio and MIDI... (Ctrl+Comma): section 9.3.
+
+--- 8.5 Help
+
+- Keys (F1): the list of keys.
+- About: version, authors and licence.
 
 
-9. Credits and licence
-----------------------
+== 9. The dialogs and other windows
+-----------------------------------
 
-ZynAddSubFX: Copyright (C) 2002-2013 Nasca Octavian Paul and others,
-2009-2026 Mark McCurry and the ZynAddSubFX contributors (AUTHORS.txt).
-Accessible Windows interface: dengopaiv, with Claude.
+--- 9.1 Type a value
 
-Free software under the GNU General Public License, version 2 or later
-(COPYING.txt).
+Enter on a slider opens "Type a value". It has:
+
+- the setting's name;
+- an edit box with the current value, selected, so typing replaces it;
+- a line with the range and the current value. For whole-number settings
+  it gives each end in words and as a number: "From left 100 % (0) to
+  right 100 % (127). Now centre." For settings with decimals it gives the
+  plain numbers: "From 0 to 41. Now 250 ms."
+
+Type the number the synthesizer uses, which is the number in the range
+line: for times, seconds (0.25 for 250 milliseconds); for volumes,
+decibels; for most other settings 0 to 127 (64 for "centre"). A decimal
+point is a full stop. A value outside the range is set to the nearest end.
+Enter sets it, Escape leaves it as it was.
+
+--- 9.2 File dialogs
+
+Open and Save use the standard Windows file dialogs, with the right file
+type chosen (.xmz for sessions, .xiz for instruments, .scl, .kbm and .xsz
+for scales). File names with letters of any language work.
+
+--- 9.3 Audio and MIDI
+
+Options, Audio and MIDI (Ctrl+Comma):
+
+- Audio output: "Default output" or a device (section 3.1);
+- MIDI input: "Every MIDI input" or one input (section 3.2);
+- OK applies and saves; Cancel leaves everything as it was.
+
+--- 9.4 Instrument banks
+
+File, Instrument banks (Ctrl+B) opens a dialog that stays open while you
+work, so you can try many instruments:
+
+- Banks: the instrument banks, by name. Choosing one fills the Instruments
+  list. The banks are the folders of instruments in the "banks" folder next
+  to the program, and in the other bank folders the settings list (25.4).
+- Instruments: the instruments of the chosen bank, each with its slot
+  number: "Bass 1 (slot 1)". Hold Space to hear the selected instrument:
+  the program loads it into the chosen part (when it is not loaded there
+  already) and plays middle C for as long as Space is held. So you can go
+  through a bank with Down Arrow and Space, Down Arrow and Space, and the
+  last instrument you heard stays loaded. Note that this replaces the
+  instrument that was in the part.
+- Into part: the part the instruments go into. It starts at the current
+  part.
+- Load (Enter): load the selected instrument into that part without playing
+  it. Loading switches the part on.
+- Close (Escape).
+
+The instrument names come from the instrument files. Banks with the same
+name in two bank folders are shown with a number: "Arpeggios[1]",
+"Arpeggios[2]".
+
+--- 9.5 Find a setting
+
+Section 6.5.
+
+--- 9.6 Play from the computer keyboard
+
+Options, Play from computer keyboard (Ctrl+K) opens a small window, "Play:
+part 1, octave 4, velocity 100". While it has the focus, the letter keys
+play notes on the current part, like a piano keyboard:
+
+- the letter row nearest the space bar plays one octave from C: Z is C, X
+  is D, C is E, V is F, B is G, N is A, M is B, comma is the next C, full
+  stop is D, slash is E. Its black keys are on the row above: S is C sharp,
+  D is D sharp, G is F sharp, H is G sharp, J is A sharp, L is the next C
+  sharp, semicolon is D sharp;
+- the top letter row plays the next octave: Q is C, W is D, E is E, R is F,
+  T is G, Y is A, U is B, I is the next C, O is D, P is E. Its black keys
+  are on the number row: 2 is C sharp, 3 is D sharp, 5 is F sharp, 6 is G
+  sharp, 7 is A sharp, 9 is C sharp, 0 is D sharp;
+- a note sounds while its key is held (holding a key does not repeat it);
+- Page Up and Page Down: one octave up or down (octaves 0 to 8; at octave
+  4, Z is middle C, C4). The program says "Octave 5";
+- Up Arrow and Down Arrow: velocity up or down by 10 (1 to 127). The
+  program says "Velocity 110";
+- Escape closes the window.
+
+The keys are named here as on a US English keyboard, but the program reads
+them by their position, not by the letter printed on them. On any layout
+(Estonian, German, French ...) the same physical keys play the same notes:
+the letter row nearest the space bar, from its first letter key (Z on US
+and Estonian keyboards, Y on German, W on French ones), and the top letter
+row, from the key right of Tab, with the black keys in the row above each.
+The extra key some European keyboards have left of that first letter key
+plays nothing.
+
+If the window loses the focus while notes are held, they stop.
+
+The current part is the part of the group chosen in the tree. To play part
+3, choose Part 3 (or anything inside it) in the tree first, then Ctrl+K.
+
+--- 9.7 Restore
+
+At the start after a crash: section 2.5.
+
+--- 9.8 Messages from the synthesizer
+
+Some errors come from the synthesizer itself, for example when a file
+cannot be read or a tuning text has an error. They are spoken and shown in
+the status bar.
+
+
+PART THREE: THE SYNTHESIZER
+===========================
+
+This part explains what the settings do. The settings' names in the
+program come from the synthesizer itself; this part names the groups and
+sections as the tree shows them, and the most important settings by the
+names you hear. Every setting also has its own description (chapter 7),
+which is often the quickest explanation.
+
+
+== 10. How ZynAddSubFX is organised
+-----------------------------------
+
+--- 10.1 The structure
+
+From the top of the tree down:
+
+- Master: the whole synthesizer. Master volume, key shift and tempo.
+  - Part 1 to Part 16: sixteen instruments that can play at the same time,
+    each on its own MIDI channel. A part holds one instrument.
+    - Kit item 1 to 16: an instrument can be made of up to 16 sounds, its
+      kit items, each for a range of keys or layered on top of each other.
+      Most instruments use only kit item 1.
+      - AddSynth, SubSynth and PADsynth: the three sound engines. A kit item
+        can use any of them, alone or together (each has an on/off setting
+        in the kit item).
+    - Part effect 1 to 3: effects that belong to this part only.
+    - Controllers: how this part reacts to the modulation wheel, pitch
+      wheel, sustain pedal and other MIDI controllers.
+  - System effect 1 to 4: effects shared by all parts; each part sends some
+    of its sound into them.
+  - Insertion effect 1 to 8: effects put on one part (or on the master
+    output).
+  - Tuning: the scale every part plays in.
+  - Settings: program settings.
+
+--- 10.2 The way the sound goes
+
+For each note:
+
+1. The note starts in every part listening to that MIDI channel, and in
+   every kit item of that part that covers the key.
+2. Each engine that is switched on in the kit item makes its sound:
+   AddSynth from oscillators, SubSynth from filtered noise, PADsynth from
+   pre-computed samples. Their envelopes, LFOs and filters shape it.
+3. The sounds of the kit items are added up into the part.
+4. The part's sound goes through its part effects (1 to 3, in order) and
+   any insertion effect assigned to the part.
+5. The part's volume and panning are applied, and the sound goes to the
+   master, and, by the part's sends, into the system effects.
+6. The system effects' outputs, the parts and any insertion effect on the
+   master output are mixed, the master volume is applied, and you hear it.
+
+--- 10.3 Values and units
+
+Many settings are numbers from 0 to 127, the range of a MIDI controller. For
+settings around a centre (panning, detune, stretch) 64 is the centre. Where
+the synthesizer has a real unit (decibels, seconds, hertz), the program
+says the value in that unit.
+
+--- 10.4 Changes and the sound
+
+Most settings change the sound at once, even while a note sounds. A few
+take effect with the next note. PADsynth's settings that shape its samples
+take effect only after "Apply changes" (chapter 17). The Settings group's
+sample rate, buffer size and oscillator size take effect after a restart.
+
+== 11. Master
+-------------
+
+Tree: Master. Settings:
+
+- File name for last name loaded if any: the file the session was last
+  opened from. For information; changing it does nothing.
+- Insertion effect number, for Where the insertion effect works ("Insertion
+  effect 1 of 8"), and Where the insertion effect works, Insertion effect N
+  (a list): a pair of controls (section 7.7). Choose an insertion effect
+  with the first, then where it works with the second: Off (it does
+  nothing), Master (on the master output, after everything else), or a
+  part. Chapter 22.
+- Key shift: transposes everything, in semitones ("0 semitones").
+- Master Volume: the output volume, in decibels.
+- Tempo / Beats per minute: the tempo, for everything that can follow it
+  (LFOs and effect lengths set relative to the tempo).
+- Stop all sound (button): silences every note at once, as a panic button.
+
+Below Master in the tree: Part 1 to 16, System effect 1 to 4, Insertion
+effect 1 to 8, Tuning, Controllers, Sends to system effect 1 to 4, Routing
+from system effect 1 to 4, and Settings.
+
+--- 11.1 The sends: Sends to system effect 1 to 4
+
+How much of each part's sound goes into that system effect. A pair of
+controls: "Part number, for Gain on part to sysefx routing" ("Part 1 of
+16"), and "Gain on part to sysefx routing, Part N": the amount, 0 for
+nothing. To give part 3 some reverb from system effect 1: in "Sends to
+system effect 1", choose Part 3 on the first slider, raise the second.
+
+--- 11.2 Routing from system effect 1 to 4
+
+How much of a system effect's output goes on into another system effect,
+to chain them (an echo into a reverb): "System effect number, for Sysefx to
+sysefx routing gain" ("System effect 1 of 4"), and "Sysefx to sysefx
+routing gain, System effect N".
+
+--- 11.3 The master's Controllers
+
+The same settings as a part's Controllers (chapter 21), but the master uses
+it only to read NRPN messages for the effects: its "NRPN MIDI Enable" check
+box decides whether NRPN messages change the system and insertion effects
+(26.2). Its other settings do nothing.
+
+
+== 12. Parts
+------------
+
+Tree: Part 1 to Part 16, named after their instruments ("Part 1: Bass 1").
+A part holds one instrument. Part 1 is on at the start; the others are off
+("Part 2, off") until you switch them on or load an instrument into them
+(the bank browser switches the part on).
+
+A part's settings are in five sections, which are also the first groups
+inside the part in the tree. Alt+Left and Alt+Right go to the same section
+of the previous or next part.
+
+--- 12.1 Part
+
+- Part enable: the part plays (checked) or is silent.
+- Part Volume: in decibels ("0.0 dB").
+- Set Panning: centre, left or right.
+- Key shift: transposes the part, in semitones ("0.00 semitones").
+- Active MIDI channel: the channel the part listens to, ch1 to ch16.
+
+--- 12.2 Keys and voices
+
+- Key limit per part: the most keys the part holds at once.
+- Voice limit per part: the most notes the part plays at once; 0 = no
+  limit. When more are played, the oldest stop. Lower it if the computer
+  cannot keep up.
+- Min Used Key, Max Used Key: the lowest and highest key the part plays,
+  as note names ("C-1 (0)" to "G9 (127)"). Use them to split a keyboard
+  between parts: bass on the left, piano on the right.
+- Velocity sensing: how much the key velocity changes the loudness (64 is
+  the usual amount, 0 none: every note equally loud).
+- Velocity offset: added to every velocity (64 = none).
+- If the channel accepts note on events: uncheck to have the part ignore
+  notes, while still reacting to controllers.
+- Lowest key: take the last note played; Highest key: take the last note
+  played (buttons): play a key, then press the button.
+
+--- 12.3 Modes
+
+- Kit mode/enable: Off (only kit item 1 plays), Multi-Kit (every kit item
+  that covers the key plays), Single-Kit (only the first that covers it).
+  Chapter 13.
+- Drum mode enable: every key plays at the same pitch and the tuning is
+  not used, so each key can be a different drum (with kit items covering
+  one key each).
+- Polyphony mode, Legato mode, Synthesis polyphony type (Poly, Mono,
+  Legato, Latch): how notes overlap. Poly plays chords. Mono plays one note
+  at a time, the newest. Legato is like mono, but a note played while the
+  previous key is still held continues the sound without restarting its
+  envelopes (and glides with portamento, chapter 21). Latch keeps notes
+  sounding after release, until the next ones are played.
+
+--- 12.4 Instrument information
+
+- Class of Instrument: the type of instrument, as a number: 0 none, 1
+  piano, 2 chromatic percussion, 3 organ, 4 guitar, 5 bass, 6 solo strings,
+  7 ensemble, 8 brass, 9 reed, 10 pipe, 11 synth lead, 12 synth pad, 13
+  synth effects, 14 ethnic, 15 percussive, 16 sound effects.
+- Instrument author, Instrument comments, User specified label: text kept
+  in the instrument file. The instrument's name is shown in the tree.
+
+--- 12.5 Effect routing
+
+For each of the three part effects, chosen with "Part effect number, for
+Part effect output" ("Part effect 1 of 3"):
+
+- Part effect output, Part effect N (a list): Next Effect (into the next
+  part effect), Part Out (straight to the part's output), Dry Out (to the
+  output without the part's other effects).
+- Part effect bypassed, Part effect N (a check box): the effect is skipped.
+
+--- 12.6 Inside a part
+
+In the tree, after the five sections: Kit item 1 to 16 (chapter 13), Part
+effect 1 to 3 (chapter 22) and Controllers (chapter 21).
+
+
+== 13. Kit items, kit mode and drum mode
+----------------------------------------
+
+Tree: Part, Kit item 1 to 16. Each kit item has:
+
+- Kit item enable: the kit item plays. Kit item 1 is always on.
+- Kit item mute: the kit item is kept but silent.
+- Kit item min key, Kit item max key: the keys it covers ("C-1 (0)" to
+  "G9 (127)").
+- ADsynth enable, SUBsynth enable, PADsynth enable: the engines it uses.
+  Every engine that is on adds its sound. A new instrument has only
+  AddSynth on.
+- Effect Levels: which part effect the kit item's sound goes into first
+  (FX1, FX2, FX3), or none.
+- Kit User Specified Label: a name for the kit item.
+
+Inside a kit item in the tree: the three engines, AddSynth, SubSynth and
+PADsynth, whether they are on or not. An engine that is off answers no
+questions, so its settings all read 0; its pane says so at the top ("...
+is off in this kit item ... Switch it on with ...") and F6 into it says it
+too. Switch the engine on here, in its kit item, to see and change its
+settings.
+
+The part's Kit mode (12.3) decides which kit items play. With Off, only
+kit item 1 plays, whatever the others are set to.
+
+To build a split or layered instrument:
+1. In the part's Modes section, set Kit mode/enable to Multi-Kit.
+2. In Kit item 2 (and more), check Kit item enable, set the key range, and
+   check the engines it should use.
+3. Design each kit item's sound in its engines.
+
+To build a drum kit: Drum mode on, Kit mode Multi-Kit or Single-Kit, and
+for each drum a kit item covering one key (min and max the same key).
+
+
+== 14. AddSynth
+---------------
+
+Tree: Part, Kit item, AddSynth. AddSynth adds up the sound of up to eight
+voices. Each voice has an oscillator (a waveform, chapter 15), its own
+envelopes, LFOs and filter, and can be modulated by another oscillator
+(frequency modulation and more). The voices are mixed, shaped by the global
+envelopes, LFOs and filter, and played.
+
+AddSynth's own pane switches the voices on and off: "Voice number, for
+Voice enabled" ("Voice 1 of 8") and "Voice enabled, Voice N" (a check box).
+In a new instrument only voice 1 is on.
+
+In the tree, AddSynth holds Voice 1 to 8 and Global.
+
+--- 14.1 Global
+
+Sections (also the first groups inside Global in the tree):
+
+Output
+- Mono/Stereo Enable: stereo sound.
+- Panning of ADsynth: centre, left, right; the lowest value is "random", a
+  new random position for every note.
+- Volume control: in decibels.
+- Volume velocity sense: how much velocity changes the volume.
+- Adjustment for anti-pop strategy: a tiny fade at the start of each note
+  against clicks.
+- Same randomness for all voices: random settings of the voices (random
+  phase, random panning) are the same for all of them, instead of
+  different per voice.
+
+Punch
+- A short, louder start of each note: Punch Strength (how much), Length of
+  Punch (how long), How Punch changes with note frequency, Punch Velocity
+  control (how much velocity changes it).
+
+Filter velocity
+- Filter Velocity Magnitude, Filter Velocity Function Shape: how much the
+  velocity opens the global filter, and how.
+
+Frequency
+- Fine Detune ("0, none" in the middle), Coarse Detune, Detune Scaling
+  Type: detune the whole sound. The scaling type sets the fine detune's
+  range: L35cents (plus or minus 35 cents), L10cents, E100cents and
+  E1200cents (exponential, up to a semitone or an octave).
+- Relative Fine Detune Gain: multiplies the voices' own fine detune: one
+  setting makes a detuned sound more or less detuned.
+- Octave note offset, Coarse note detune: transpose by octaves and
+  semitones.
+
+Inside Global in the tree, after the sections: Amplitude envelope,
+Frequency envelope, Filter envelope (chapter 18), Amplitude LFO, Frequency
+LFO, Filter LFO (chapter 19), Filter (chapter 20), and Resonance (14.3).
+
+--- 14.2 Voices
+
+Tree: AddSynth, Voice 1 to 8. Alt+Left and Alt+Right go to the same section
+or group of the previous or next voice (6.4). Sections:
+
+Voice
+- Type of Sound: Sound (the oscillator), White noise, Pink noise, DC.
+- Voice Startup Delay: the voice starts this much later than the note.
+- Resonance Enable: whether the global resonance applies to this voice.
+- Oscillator Hard Sync: the voice's oscillator restarts at every cycle of
+  its modulator: the classic sync sweep. It only works when the
+  modulator's frequency differs from the voice's, and not in voice 1.
+
+Unison
+- Plays the voice several times at once, slightly detuned, for a full,
+  chorus like sound.
+- Number of subvoices: 1 is off, up to 50.
+- Phase Randomness: the copies start at random places.
+- Subvoice detune: how far apart the copies are.
+- Subvoice L/R Separation: their stereo spread.
+- Subvoice vibratto, Subvoice vibratto speed: a vibrato of the copies.
+- Subvoice Phases: none, random, 50%, 33%, 25%: which copies are phase
+  inverted.
+
+Modulator
+- Modulator mode: none, mix, ring, phase, frequency, pulse. The modulator
+  changes the voice's oscillator: frequency and phase modulation make bell
+  like, metallic and electric piano sounds; ring modulation makes
+  sidebands; mix adds the modulator's sound; pulse modulates the phase of
+  two mirrored copies.
+- Modulator Oscillator Selection: -1 for the voice's own modulator
+  oscillator (Modulator oscillator in the tree), or the number of another
+  voice whose sound modulates this one.
+- External FM Oscillator Selection, FM Oscillator Phase: use another
+  voice's modulator oscillator, and the modulator's start phase.
+- Modulator Magnitude: how strong the modulation is.
+- Modulator HF dampening: less modulation on higher notes.
+- Modulator Velocity Function: how much velocity changes the modulation.
+- Modulator Fine Detune, Modulator Coarse Detune, Modulator Detune
+  Magnitude, Octave note offset for modulator, Coarse note detune for
+  modulator, Modulator Frequency Fixed: the modulator's pitch. Its ratio to
+  the voice's pitch decides the timbre: whole-number ratios sound
+  harmonic, others bell like.
+- Modulator Frequency Envelope, Modulator Amplitude Envelope: switch on
+  the modulator's envelopes (they are groups inside the voice).
+
+Oscillator source
+- External Oscillator Selection: -1 for the voice's own oscillator, or
+  the number of a voice whose oscillator this voice uses.
+- Oscillator Phase: where the oscillator's waveform starts.
+
+Frequency
+- If frequency is fixed: the voice ignores the key and plays a fixed pitch;
+  Equal Temperament Parameter lets it follow the keys partly.
+- Pitch bend adjustment: how much the pitch wheel bends this voice.
+- Voice constant offset: a fixed number of hertz added to the frequency,
+  for slow beating against other voices.
+- Fine Detune, Coarse Detune, Magnitude of Detune, Octave note offset,
+  Coarse note detune: the voice's pitch relative to the note. Two voices a
+  few cents apart beat against each other, a classic thick sound.
+- Frequency Envelope Enable, Frequency LFO Enable: switch on the voice's
+  own frequency envelope and LFO.
+
+Amplitude
+- Panning, Voice volume (in decibels), Velocity Sensing.
+- Invert the voice (signal inverter): inverts the voice's phase. Two voices,
+  one inverted, cancel where they are the same, for hollow sounds.
+- AntiAliasing Enable: less harshness on very high notes.
+- Amplitude Envelope Enable, Amplitude LFO Enable: switch on the voice's
+  own amplitude envelope and LFO.
+
+Filter switches
+- Filter Enable: the voice has its own filter (the group "Filter" inside
+  the voice); Filter Envelope Enable, Filter LFO Enable: its envelope and
+  LFO.
+- Filter Bypass: the voice skips the global filter.
+- Filter Fc Controll Bypass: the filter cutoff controller does not move
+  this voice's filter.
+- Filter Velocity Magnitude, Filter Velocity Function Shape: how velocity
+  opens the voice's filter.
+
+Inside a voice in the tree, after the sections: Oscillator, Modulator
+oscillator, the voice's envelopes and LFOs, its filter, and the modulator's
+envelopes.
+
+--- 14.3 Resonance
+
+Tree: AddSynth, Global, Resonance (and PADsynth, Resonance). A frequency
+curve applied to the whole sound, like the body of an instrument.
+
+- Resonance enable.
+- Disable resonance filter on first harmonic: protects the fundamental.
+- Point number, for Resonance point ("Point 1 of 256"), and Resonance
+  point, Point N: the curve, point by point, from low to high frequencies.
+- How many dB the signal may be amplified: the curve's maximum gain.
+- Center frequency, The number of octaves: where the curve lies and how
+  wide it is.
+- Buttons: Smooth the response, Interpolate between peaks (draws the curve
+  between its highest points), Randomize, Reset the response (flat).
+
+
+== 15. The oscillator
+---------------------
+
+Tree: a voice's Oscillator and Modulator oscillator, and PADsynth's
+Oscillator. The oscillator makes one cycle of a waveform, which is played at
+the note's pitch. The waveform is made of harmonics: 128 sine waves at 1, 2,
+3 ... times the base frequency, each with a magnitude (how loud) and a phase
+(where it starts). You choose a base function, set the harmonics, and
+process the result.
+
+Sections:
+
+Base function
+- Base Waveform for harmonics: sine, triangle, pulse, saw, power, gauss,
+  diode, abssine, pulsesine, stretchsine, chirp, absstretchsine,
+  chebyshev, sqr, spike, circle, powersinus, or use-as-base waveform. The
+  harmonics are copies of this base function at 1, 2, 3 ... times its
+  frequency; with sine you build the waveform from sine waves.
+- Morph between possible base function shapes: changes the base
+  function's shape, for example the width of a pulse or the slope of a
+  saw.
+- Modulation applied to Base function spectra (None, Rev, Sine, Power,
+  Chop), and Base function modulation parameter 1, 2 and 3.
+- Use as base function (button): makes the current waveform the base
+  function, to build further on it.
+
+Harmonics
+- Type of magnitude for harmonics: linear, or decibel scales of different
+  ranges.
+- Amount of shift on harmonics, and If harmonics are shifted before
+  waveshaping/filtering: moves all harmonics up or down.
+- Harmonic number, for Harmonic phase / Harmonic phase, Harmonic N, and
+  Harmonic number, for Harmonic magnitude / Harmonic magnitude, Harmonic N:
+  the harmonics (section 7.7), "Harmonic 1 of 128". In the linear scale a
+  magnitude of 64 is silent; above 64 the harmonic sounds, below it sounds
+  with the inverted phase. The first harmonic is the fundamental, the
+  second an octave higher, the third an octave and a fifth, the fourth two
+  octaves, the fifth two octaves and a major third.
+- Convert to sine harmonics (button): turns the current waveform into its
+  harmonics on a sine base, so you can edit it harmonic by harmonic.
+
+Randomness
+- Phase randomness: the harmonics' phases vary with every note (below the
+  middle for all harmonics together, above it for each one).
+- Variance of harmonic randomness, Harmonic random distribution to select
+  from: the harmonics' magnitudes vary with every note.
+
+Adaptive harmonics
+- Adaptive Harmonics Mode, Base frequency of adaptive harmonic (30 to 3000
+  Hz), Adaptive Harmonic Strength, Adaptive Harmonics Postprocessing Power:
+  move the harmonics with the note's pitch, like the formants of a voice or
+  an instrument body.
+
+Waveshaping
+- Degree Of Waveshaping, and Shape of distortion to be applied:
+  Undistorted, Arctangent, Asymmetric, Pow, Sine, Quantisize, Zigzag,
+  Limiter, Upper Limiter, Lower Limiter, Inverse Limiter, Clip, Asym2, Pow2,
+  sigmoid, Tanh, Cubic, Square. Arctangent and sigmoid make the sound
+  louder and fuller without harsh highs; Quantisize and Clip add many high
+  overtones; the limiters cut the waveform's peaks.
+
+Filter
+- Harmonic Filter: No Filter, low pass, high pass, band pass, band stop,
+  cosine, sine, low shelf and others, with Filter parameter 1 and 2.
+- Filter before waveshaping: the order of filter and waveshaping.
+
+Spectrum adjust
+- Spectral Adjustment Type (None, Pow, ThrsD, ThrsU) and Spectral
+  Adjustment Parameter: raise the magnitudes to a power, or keep only those
+  below or above a threshold.
+
+Modulation
+- Frequency Modulation To Combined Spectra (None, Rev, Sine, Power), and
+  Modulation parameter 1, 2 and 3: modulate the finished waveform.
+
+Other
+- If it is used by PADSynth (and not ADSynth): set by the synthesizer.
+
+
+== 16. SubSynth
+---------------
+
+Tree: Part, Kit item, SubSynth. SubSynth starts from white noise and filters
+it through a band pass filter for each harmonic. Narrow filters give a clear
+tone, wide ones a breathy, noisy one: strings, choirs, flutes, wind, and
+soft pads. Switch it on with SUBsynth enable in the kit item.
+
+Sections:
+
+Output
+- Stereo Enable, Volume (decibels), Left Right Panning, Amplitude Velocity
+  Sensing function.
+
+Frequency
+- Detune in detune type units, Coarse Detune, Detune Scale: the pitch.
+- Enable for Frequency Envelope: SubSynth's frequency envelope.
+- Base frequency fixed frequency enable, Equal temeperate control for fixed
+  frequency operation, Pitch bend adjustment, Voice constant offset, Note
+  octave shift, Note coarse detune: as for an AddSynth voice.
+
+Filter switches
+- Enable for Global Filter: SubSynth's global filter (the group "Filter").
+- Filter Velocity Magnitude, Filter Velocity Function Shape.
+
+Harmonics
+- Enable for Bandwidth Envelope: SubSynth's bandwidth envelope, which
+  changes the filters' width over the note.
+- Number of filter stages: more stages make each harmonic's filter steeper
+  and the tone purer, and cost more processing.
+- Bandwidth of filters: the width of every filter.
+- Magnitude scale: how the harmonics' magnitudes are scaled.
+- Harmonic number, for Harmonic magnitudes / Harmonic magnitudes,
+  Harmonic N, and Harmonic number, for Relative bandwidth / Relative
+  bandwidth, Harmonic N: each harmonic's level and width, "Harmonic 1 of
+  64".
+- Bandwidth scaling with frequency: wider or narrower filters for the
+  higher harmonics.
+- How harmonics are initialized: how the filters start (random or zero).
+
+Overtones
+- Spread of harmonic frequencies (Harmonic, ShiftU, ShiftL, PowerU,
+  PowerL, Sine, Power, Shift), Overtone Parameter 1 and 2, Force Overtones
+  To Harmonics: move the harmonics away from exact multiples of the base
+  frequency, for bells and metal.
+
+Inside SubSynth in the tree, after the sections: its amplitude, frequency,
+bandwidth and filter envelopes, and its filter.
+
+
+== 17. PADsynth
+---------------
+
+Tree: Part, Kit item, PADsynth. PADsynth computes long samples (wavetables)
+from a harmonic profile in which every harmonic is not one frequency but a
+band of frequencies. The result is smooth and wide, without the repetition
+of a single waveform: pads, choirs, ensembles, ambient sounds, bells.
+Switch it on with PADsynth enable in the kit item.
+
+PADsynth's samples are computed in advance. After changing settings of the
+Harmonic profile, Overtones, Bandwidth or Sample sections, or of PADsynth's
+oscillator, press "Apply changes (rebuild the PADsynth samples)" in the
+Sample section. It takes from a moment to a few seconds. The settings of
+the Output, Punch, Filter velocity and Frequency sections, and the
+envelopes, LFOs and filter, take effect at once.
+
+Sections:
+
+Output
+- Stereo/Mono Mode, Left Right Panning, Synth Volume, Amplitude Velocity
+  Sensing function, Adjustment for anti-pop strategy.
+
+Punch
+- Punch Strength, Length of punch, How Punch changes with note frequency,
+  Punch Velocity control: a short louder start (as in AddSynth, 14.1).
+
+Filter velocity
+- Filter Velocity Magnitude, Filter Velocity Function Shape.
+
+Frequency
+- Base frequency fixed frequency enable, Equal temeperate control for fixed
+  frequency operation, Pitch bend adjustment, Voice constant offset, Fine
+  Detune, Coarse Detune, Magnitude of Detune, Octave note offset, Coarse
+  note detune.
+
+Harmonic profile
+- Harmonic Distribution Model: bandwidth (each harmonic a band of the set
+  width: the usual PADsynth sound), discrete (single frequencies),
+  continuous.
+- Harmonic profile shape: Gaussian, Rectangular, Double Exponential: the
+  shape of each harmonic's band.
+- Harmonic shape distribution parameter, Width of base harmonic: the band's
+  shape and width.
+- Frequency multiplier on distribution, Distribution modulator parameter,
+  Frequency of modulator parameter: modulate the band's shape.
+- Amplitude harmonic multiplier type, Type of amplitude multiplier,
+  Amplitude multiplier parameter 1 and 2: shape the band's level.
+- Autoscaling Harmonics: keeps the profile's level even.
+- Harmonic cutoff model: how the band is cut off.
+
+The magnitudes of the harmonics come from PADsynth's own Oscillator, in the
+tree inside PADsynth (chapter 15).
+
+Overtones
+- Harmonic Overtone shifting mode and Harmonic position parameter 1, 2 and
+  3: move the harmonics away from exact multiples, for bells and metal.
+
+Bandwidth
+- Bandwidth Of Harmonics: how wide each harmonic's band is. Wider bands
+  give the typical choir and ensemble sound; narrow ones a clearer tone.
+- Bandwidth scaling: how the bandwidth grows from low to high harmonics.
+
+Sample
+- Size of each wavetable element, Base note for wavetable, Samples per
+  octave, Number of octaves to sample: the size and number of the samples.
+  Larger and more samples sound better and take more memory and time to
+  compute.
+- Apply changes (rebuild the PADsynth samples) (button).
+
+Inside PADsynth in the tree, after the sections: its LFOs, envelopes,
+filter, oscillator and resonance.
+
+
+== 18. Envelopes
+----------------
+
+An envelope changes something over the time of a note: the volume (the
+amplitude envelope), the pitch (the frequency envelope), the filter's cutoff
+(the filter envelope), SubSynth's bandwidth (the bandwidth envelope). In the
+tree they are groups such as "Amplitude envelope". An AddSynth voice's own
+envelopes, and the modulator's, only work when they are switched on in the
+voice ("Amplitude Envelope Enable" and so on).
+
+--- 18.1 The usual shape
+
+An amplitude envelope has four stages:
+
+1. Attack: from the start of the note, the volume rises from silence to
+   full. Attack Time sets how long.
+2. Decay: the volume falls to the sustain level. Decay Time.
+3. Sustain: the volume stays at Sustain Value while the key is held.
+4. Release: after the key is released, the volume falls to silence.
+   Release Time.
+
+Frequency and filter envelopes have levels for their stages: Attack Value
+(where the pitch or cutoff starts), Decay Value, Release Value (where it
+goes after release); 64 is no change.
+
+The settings:
+
+- Attack Time, Decay Time, Release Time: in milliseconds or seconds.
+- Attack Value, Decay Value, Sustain Value, Release Value: levels.
+- Stretch with respect to frequency: makes the envelope shorter on higher
+  notes, as on many real instruments (0 = the same on every note).
+- Force Envelope to fully evaluate (forced release): when a key is released
+  before the sustain stage was reached, the envelope still goes to its
+  release. Usually on.
+- Linear or Logarithmic Envelopes: the amplitude changes in a straight line
+  instead of in decibels (unchecked, logarithmic, sounds more natural).
+- Repeat the Envelope: the envelope starts again when it ends, like a slow
+  LFO.
+
+--- 18.2 Free mode
+
+Complex Envelope Definitions switches the envelope to free mode: instead of
+the fixed stages it is a list of points, each with a time (from the
+previous point) and a value. One of them is the sustain point, where the
+envelope stays while the key is held: Location of the sustain point.
+
+The points are two choosers with their values (section 7.7): "Point number,
+for Point time" with "Point time, Point N" (in milliseconds), and "Point
+number, for Point value" with "Point value, Point N". A new free-mode
+envelope has as many points as the fixed shape it came from. Adding and
+removing points is not possible in this edition yet: change the existing
+ones; a point with the same value as the one before it adds nothing.
+
+
+== 19. LFOs
+-----------
+
+An LFO (low frequency oscillator) changes something over and over, slowly:
+vibrato (the frequency LFO), tremolo (the amplitude LFO), a wah or sweep
+(the filter LFO). In the tree they are groups such as "Frequency LFO". An
+AddSynth voice's own LFOs only work when switched on in the voice.
+
+The settings:
+
+- Frequency of LFO: how fast, in hertz.
+- Intensity of LFO: how much (the depth). 0 = the LFO does nothing.
+- Starting Phase: where in its cycle the LFO starts; the lowest value
+  starts it at a random place for every note.
+- RND/SQR lp-filter freq: smooths the square and random shapes.
+- Shape of LFO: sine, triangle, square, up (rising saw), down (falling
+  saw), exp1, exp2, random.
+- Amplitude Randomness, Frequency Randomness: the depth or speed varies
+  randomly every cycle (0 = off).
+- Delay before LFO start: the LFO waits after the note starts (vibrato
+  that comes in later).
+- Time to ramp up LFO amplitude (fade in), Time to ramp down LFO amplitude
+  on key release (fade out).
+- Enable for global operation (continuous mode): the LFO runs on from note
+  to note instead of starting again with each note (good for filter sweeps
+  over a phrase).
+- Note frequency stretch: higher notes have faster LFOs (64 = the same on
+  every note).
+- Numerator of ratio to bpm, Denominator of ratio to bpm: the LFO speed as
+  a part of the tempo, for example 1 and 4 for one cycle per quarter note.
+  Numerator 0 uses the frequency instead.
+
+The modulation wheel scales the LFOs' depth (chapter 21).
+
+
+== 20. Filters
+--------------
+
+A filter changes the tone by cutting or raising frequencies. Each engine has
+a global filter, each AddSynth voice its own, and the Dynamic filter effect
+one too. In the tree they are groups named "Filter".
+
+Sections:
+
+Filter
+- Class of filter: analog, formant, st.var. (state variable), moog, comb.
+- Filter Type (Ptype), for the analog filters: LP1, LP2 (low pass: removes
+  the highs; LP2 is steeper), HP1, HP2 (high pass: removes the lows), BP
+  (band pass: keeps a band), notch (removes a band), peak, l.shelf and
+  h.shelf (raise or lower everything below or above). Filter Type
+  (type-svf), Filter Type (type-moog) and Comb Filter Type are the types of
+  the state variable, moog and comb filters.
+- Filter Stages: the filter applied several times in a row: steeper, and
+  more processing.
+- Quality Factor: the resonance (Q), how much the filter raises the
+  frequencies at its cutoff. High values give the classic squelch of
+  analog synthesizers, especially with the filter envelope moving the
+  cutoff.
+- Base cutoff frequency, in hertz: where the filter starts working.
+- Frequency Tracking amount, in percent: the cutoff follows the note's
+  pitch; positive values open the filter on higher notes.
+- Output Gain, in decibels (it also sets how much the peak and shelf
+  filters raise or cut).
+
+The comb filter makes evenly spaced notches; with high resonance and a short
+burst of noise it rings like a plucked string. Keep the amplitude envelope
+from sustaining at zero, so the ringing is not cut off.
+
+Formants
+- A formant filter imitates a voice: it has several formants (resonant
+  peaks), whose frequencies make the vowels.
+- Number of formants to be used, Rate that formants change (how slowly it
+  moves between vowels), Clarity (how separate the vowels are), Center Freq
+  and Number of octaves for formant (the range the cutoff moves the vowels
+  over).
+- Inside the filter in the tree: Vowel 1 to 6, each with Formant 1 to 12:
+  Formant frequency, Strength of formant, F.q (the formant's width).
+
+Vowel sequence
+- Length of vowel sequence, How modulators stretch the sequence, If the
+  modulator input is inverted, and "Step number, for Vowel number of this
+  sequence position" with "Vowel number of this sequence position, Step
+  N": the vowels the formant filter goes through as its envelope or LFO
+  moves it.
+
+Other
+- Waveguide HighPass, Waveguide LowPass: settings of the comb filter.
+
+The filter's envelope and LFO move the cutoff; velocity can move it too
+(the engines' "Filter velocity" sections).
+
+
+== 21. Controllers: wheels, pedals and portamento
+-------------------------------------------------
+
+Tree: Part, Controllers. How the part reacts to MIDI controllers. Sections:
+
+Pitch wheel
+- Range of MIDI Pitch Wheel: how far the pitch wheel bends, in cents (100
+  cents is a semitone; "200 cents", a whole tone, is the usual setting).
+- If PitchWheel has unified bendrange or not, Lower Range of MIDI Pitch
+  Wheel: a different range downwards.
+
+Modulation wheel
+- Depth of Modwheel MIDI Control: how much the modulation wheel
+  (controller 1) changes the depth of all LFOs. At 0 the wheel does nothing.
+  With the wheel in the middle (64), the LFOs have the depth they are set
+  to; lower is less, higher more. For the wheel at 0 to stop the modulation
+  completely, the depth must be 64 or more. 80 by default.
+- Modwheel Exponential Mode: a finer beginning and a larger maximum.
+
+Portamento
+- Portamento glides the pitch from one note to the next.
+- Portamento MIDI Receive: the part reacts to the portamento switch
+  (controller 65).
+- Portamento Enable: on or off.
+- Portamento Auto mode: glide only when notes are played legato (a key
+  pressed while the previous one is still held). On by default.
+- Portamento Length: how long the glide takes.
+- Relative length of glide up vs glide down.
+- Threshold for portamento, Type of threshold: glide only when the notes
+  are more (checked) or fewer (unchecked) than this many semitones apart.
+- Proportional portamento time, Portamento proportional scale, Portamento
+  proportional depth: the time grows with the distance.
+
+Controller depths
+- Depth of Panning MIDI Control (controller 10), Depth of Filter Cutoff
+  MIDI Control (74), Depth of Filter Q MIDI Control (71), Depth of
+  Bandwidth MIDI Control (75) with Bandwidth Exponential Mode, Resonance
+  Center MIDI Depth (77), Resonance Bandwidth MIDI Depth (78).
+
+Controllers received
+- Expression MIDI Receive (11), FM amplitude MIDI Receive (76), Volume
+  MIDI Receive (7), Sustain MIDI Receive (64, the sustain pedal), NRPN MIDI
+  Enable.
+
+Chapter 26 lists the controller numbers.
+
+
+== 22. Effects
+--------------
+
+--- 22.1 Three kinds of effect
+
+- System effects (System effect 1 to 4, under Master): shared by all
+  parts. Each part sends some of its sound into each of them (11.1). Use
+  them for reverb and echo shared by several parts. A system effect's
+  output can feed the others (11.2).
+- Insertion effects (Insertion effect 1 to 8, under Master): each works on
+  one part, or on the master output, as chosen in the Master group (11).
+  The whole sound of that part goes through it. Use them for distortion,
+  wah or chorus on one part.
+- Part effects (Part effect 1 to 3, inside a part): belong to the part and
+  are saved with its instrument. The part's Effect routing section (12.5)
+  says where their output goes.
+
+--- 22.2 An effect slot
+
+Every effect slot has the same settings:
+
+- Effect type: Disabled, Reverb, Echo, Chorus, Phaser, Alienwah,
+  Distortion, EQ, DynFilter (dynamic filter), Sympathetic, Reverse. The
+  tree names the slot after its type: "System effect 1: Reverb",
+  "Insertion effect 2, off".
+- The effect type's presets, a list named after it: "Reverb preset:
+  Cathedral1". Choosing a preset sets all of the effect's settings. EQ has
+  no presets, and a disabled slot none, so the list is not there for them.
+- Amount of effect: for system effects, how loud their output is; for
+  insertion and part effects, the mix of the effected sound with the
+  original (dry/wet).
+- Panning.
+- Numerator of ratio to bpm, Denominator of ratio to bpm: for effects with
+  a time (echo, reverse, LFOs), a length as a part of the tempo.
+
+Choosing an effect type rebuilds the pane (the focus stays on Effect type)
+and puts the effect's own group into the tree inside the slot, named after
+the effect ("Reverb"). That group holds the effect's own settings,
+starting with Effect preset, Amount of effect and Panning again.
+
+--- 22.3 The effects, their presets and settings
+
+Reverb: many echoes, as in a room or a hall.
+- Presets: Cathedral1, Cathedral2, Cathedral3, Hall1, Hall2, Room1, Room2,
+  Basement, Tunnel, Echoed1, Echoed2, VeryLong1, VeryLong2.
+- Settings: Length of Reverb, Delay for first impulse, Feedback for first
+  impulse, Low pass filter, High pass filter, Dampening, Type (Random,
+  Freeverb, Bandwidth), Room Size, Bandwidth (of the Bandwidth type).
+
+Echo: repeats.
+- Presets: Echo 1, Echo 2, Echo 3, Simple Echo, Canyon, Panning Echo 1 to
+  3, Feedback Echo.
+- Settings: Length of Echo, Difference In Left/Right Delay, Left/Right
+  Crossover, Echo Feedback (how many repeats), Dampen High Frequencies
+  (each repeat a little duller).
+
+Chorus: a delayed copy whose pitch moves with an LFO, for a fuller sound;
+with a very short delay it is a flanger.
+- Presets: Chorus1 to Chorus3, Celeste1, Celeste2, Flange1 to Flange5,
+  Triple, Dual.
+- Settings: Effect Frequency, Frequency Randomness, LFO Shape, Stereo Mode,
+  LFO Depth (the LFO), Delay, Feedback, Left/Right Crossover, Chorus Mode
+  (CHORUS, FLANGE, DUAL, TRIPLE), Output Subtraction.
+
+Phaser: a sweeping sound from moving all-pass filters.
+- Presets: Phaser 1 to 6, APhaser 1 to 6 (analog style).
+- Settings: LFO frequency, LFO randomness, Lfo shape, Left/right channel
+  phase shift, LFP depth (the LFO depth), Feedback, Stages, Channel
+  routing, Offset, Invert output, Phase, Width, Square the LFO,
+  Distortion, Use analog phaser.
+
+AlienWah: a strange wah sliding between vowels.
+- Presets: wah 1 to wah 4.
+- Settings: Effect Frequency, Frequency Randomness, LFO Shape, Stereo
+  Mode, LFO Depth, Feedback, Delay, Left/Right Crossover, Phase.
+
+Distortion: adds overtones, from warm drive to harsh fuzz.
+- Presets: Overdrive 1, Overdrive 2, A. Exciter 1, A. Exciter 2, Guitar
+  Amp, Quantisize.
+- Settings: Left/Right Crossover, Input amplification (the drive), Output
+  amplification, Distortion Shape (the shapes of the oscillator's
+  waveshaping, chapter 15), Negate Signal, Low Pass Cutoff, High Pass
+  Cutoff, Stereo, Filtering before/after non-linearity, Shape of the wave
+  shaping function, Input DC Offset.
+
+EQ: an equalizer of up to 8 bands.
+- No presets. The slot's EQ group holds Band 1 to 8, each with Filter Type
+  (Off, low pass, high pass, band pass, notch, peak, low shelf, high
+  shelf), Freq, Gain, Resonance/Bandwidth and Additional filter stages.
+  Alt+Left and Alt+Right go from band to band.
+
+Dynamic filter: a filter whose cutoff follows an LFO and the loudness of
+the sound (auto wah).
+- Presets: WahWah, AutoWah, Sweep, VocalMorph1, VocalMorph2.
+- Settings: the LFO and its depth, amplitude sensing (how much loudness
+  opens the filter), its inversion and smoothness. Inside the slot in the
+  tree: Filter (the filter it moves, chapter 20) and Dynamic filter (the
+  effect's own settings).
+
+Sympathetic: the resonance of other strings, as in a piano with the sustain
+pedal down.
+- Presets: Generic, Piano, Grand, Guitar, 12-String.
+- Settings: drive, level, the number of strings, Q (how long they ring),
+  unison and its detune, the lowest string's note, and each string's
+  frequency (a chooser and its value).
+
+Reverse: plays the sound backwards, segment by segment.
+- Presets: noteon, noteonoff, auto.
+- Settings: the segment length (or a part of the tempo), the phase, and the
+  synchronisation: auto, MIDI, host, note on, note on and off.
+
+
+== 23. Tuning (microtonal scales)
+---------------------------------
+
+Tree: Tuning. Everything plays in equal temperament (12 equal steps per
+octave) until "Enable for microtonal mode" is checked. Then every part plays
+in the scale set here: other temperaments, just intonation, the scales of
+other traditions, or scales with more or fewer steps per octave.
+
+Sections:
+
+Scale
+- Enable for microtonal mode: use the scale (unchecked: equal
+  temperament).
+- The note for 'A' ("A4 (69)") and Frequency of the 'A' note ("440.0 Hz"):
+  the reference pitch.
+- Scale shift: shifts the scale by steps (64 = none).
+- Key mapping inverse and Center of the inversion: mirror the keyboard
+  around a key (high keys play low notes).
+- Fine detune for all notes (64 = none).
+- Microtonal Name, Microtonal comments: the scale's name and description.
+- Tunings, one step per line (a multi-line text box, 7.5): each line is a
+  step of the scale above its first note, in cents with a decimal point
+  (100.0 is an equal-tempered semitone) or as a ratio (3/2 is a pure
+  fifth). The last line is the interval at which the scale repeats,
+  usually the octave: 1200.0 or 2/1. Equal temperament is 100.0, 200.0 ...
+  1100.0, 2/1. Ctrl+Enter applies the text.
+
+Keyboard mapping
+- Mapping Enable: use the mapping.
+- First key to retune, Last key to retune, Scale degree 0 note (the key
+  that plays the scale's first note), Size of key map, all keys as note
+  names.
+- Key number, for Mapped scale degree ("Key 1 of 128") and Mapped scale
+  degree, Key N: which scale degree each key of the map plays.
+- Key mapping, one key per line (a multi-line text box): the same as
+  text; x leaves a key silent.
+
+Files:
+
+- File, Open Scala scale (.scl): a scale in the common Scala format (a large
+  archive of Scala scales is on the internet). Then check Enable for
+  microtonal mode.
+- File, Open Scala keyboard mapping (.kbm): a Scala keyboard mapping.
+- File, Open scale (.xsz) and Save scale as (.xsz): ZynAddSubFX's own
+  scale files, with the scale and the mapping.
+- The tuning is also saved with the session (.xmz).
+
+After opening a scale the Tuning group shows it: the program asks the
+synthesizer for the new values a moment later.
+
+
+== 24. Settings
+---------------
+
+Tree: Settings. Program settings, saved in the settings file when the
+program closes (25.1). Sections:
+
+Audio
+- Samples of audio per second: the sample rate, 44100 by default.
+- Size of processed audio buffer: 256 samples by default (3.5).
+- Size Of Oscillator Wavetable (1024 by default), and the same as a power
+  of two (10): the resolution of the oscillators.
+- Swap Left And Right Channels.
+- Apply Compressor to Audio Output: a limiter on the master output against
+  clipping.
+- Level of Interpolation, Linear/Cubic: 0 linear, 1 cubic. Cubic sounds
+  cleaner on high notes and costs a little more.
+- The sample rate, the buffer size and the oscillator size take effect
+  after a restart.
+
+Files
+- Level of Gzip Compression For Save Files: 0 to 9, 3 by default (0 = not
+  compressed).
+- Include Disabled parts in save.
+- Old Check For PADsynth functionality within a patch.
+
+Other
+- Ignore MIDI Program Change Events: program change messages no longer
+  change the instruments.
+- Automatic Closing of BackUI After Patch Selection, Beginner/Advanced Mode
+  Select, Keyboard Layout For Virtual Piano Keyboard: settings of
+  upstream's graphical interfaces that do nothing in this edition. They are
+  kept so settings files stay compatible.
+
+
+PART FOUR: REFERENCE
+====================
+
+
+== 25. Files and folders
+------------------------
+
+--- 25.1 Where the program keeps things
+
+- The program folder (where zynaddsubfx.exe is): the program, its
+  libraries, the banks folder and this manual. The program never writes
+  here except when you save an instrument into a bank yourself.
+- %APPDATA%\ZynAddSubFX (usually C:\Users\<you>\AppData\Roaming\ZynAddSubFX):
+  zynaddsubfxXML.cfg, the settings: audio and MIDI devices, the bank and
+  preset folders, the Settings group's values.
+- %LOCALAPPDATA%\ZynAddSubFX (usually C:\Users\<you>\AppData\Local\ZynAddSubFX):
+  the automatic saves (zynaddsubfx-<number>-autosave.xmz) and the bank
+  cache (zynaddsubfx-bank-cache.xml, which makes opening the bank browser
+  quick; delete it to have the banks scanned anew).
+
+To reset all settings, close the program and delete zynaddsubfxXML.cfg.
+
+--- 25.2 File types
+
+- .xmz: a complete session: all parts with their instruments, effects,
+  tuning, master settings. File, Open (Ctrl+O) and Save as (Ctrl+S).
+- .xiz: one instrument (a part). File, Open instrument (Ctrl+I) and Save
+  current part as instrument (Ctrl+Shift+S). The banks are folders of .xiz
+  files.
+- .xsz: a ZynAddSubFX scale (chapter 23).
+- .scl and .kbm: Scala scale and keyboard mapping files (chapter 23).
+- .xpz: presets of single components (envelopes, filters ...), used by
+  upstream's copy and paste; not used by this edition's interface yet.
+
+All of them are compressed XML; any other ZynAddSubFX, on any system, opens
+them. The compression level is a setting (chapter 24).
+
+--- 25.3 Automatic saves
+
+Every minute the program saves everything to an automatic save in
+%LOCALAPPDATA%\ZynAddSubFX. When it closes normally, the automatic save is
+deleted. If it was not deleted (a crash), the next start offers to restore
+it (section 2.5).
+
+--- 25.4 Banks
+
+A bank is a folder of instrument files. Each file's name starts with its
+slot number: "0001-Bass 1.xiz" is slot 1. The bank browser shows each bank
+folder found in the bank folders:
+
+- the banks folder next to the program, always;
+- banks, ../banks and ./ relative to the folder the program was started
+  in, and ~/banks in your user folder (these are upstream's defaults);
+- any folders added to the setting "bank root directories" in the settings
+  file.
+
+The 32 banks shipped with ZynAddSubFX: Arpeggios, Bass, Brass, Choir and
+Voice, Collection, Companion, Cormi_Noise, Cormi_Sound, Cris Owl Alvarez,
+Drums, Dual, Fantasy, Guitar, Laba170bank, Misc, Noises, Organ, Pads,
+Plucked, Reed and Wind, Rhodes, Splitted, Strings, Synth, SynthPiano,
+net-wisdom, olivers-100, olivers-other, and the_mysterious_bank 1 to 4,
+with several hundred instruments in all.
+
+To make your own bank: make a folder inside the banks folder, and save
+instruments into it with names like "0001-My sound.xiz".
+
+
+== 26. MIDI reference
+---------------------
+
+--- 26.1 Controllers
+
+The controllers every part reacts to (unless switched off in its
+Controllers, chapter 21):
+
+  1   modulation wheel: LFO depth
+  7   volume
+  10  panning
+  11  expression
+  64  sustain pedal
+  65  portamento on or off
+  71  filter resonance (Q)
+  74  filter cutoff
+  75  bandwidth (not in General MIDI)
+  76  modulation amplitude (not in General MIDI)
+  77  resonance centre frequency (not in General MIDI)
+  78  resonance bandwidth (not in General MIDI)
+  120 all sounds off
+  121 reset all controllers
+  123 all notes off
+
+Pitch bend bends by the part's pitch bend range (200 cents by default).
+Program change loads the instrument of that slot of the current bank into
+the part on that channel (the Settings group can switch this off: "ignore
+program change"). Aftertouch is passed to the synthesizer.
+
+--- 26.2 NRPN
+
+NRPN messages can change every system and insertion effect's settings
+while playing, for example a reverb's time from a knob of your keyboard:
+
+1. NRPN coarse (controller 99): 4 for system effects, 8 for insertion
+   effects.
+2. NRPN fine (controller 98): the effect's number, 0 for the first.
+3. Data entry coarse (controller 6): the setting's number within the effect.
+4. Data entry fine (controller 38): the value (usually 0 to 127).
+
+System effects are reached on any channel; insertion effects on channel 1
+for the master's insertion effects, and on channels 2 to 16 for the
+corresponding parts'. The part's Controllers have a switch to ignore NRPN.
+
+Some settings click when changed quickly while sound passes through the
+effect; change them when the effect is quiet.
+
+
+== 27. Command line
+-------------------
+
+zynaddsubfx.exe takes options, for a shortcut or a console. Started from a
+console, the program writes its messages there.
+
+  -h, --help                  the list of options
+  -v, --version               the version
+  -l FILE, --load=FILE        open a session (.xmz)
+  -L FILE, --load-instrument=FILE   open an instrument (.xiz) into part 1
+  -M FILE, --midi-learn=FILE  open MIDI learn mappings (.xlz)
+  -U, --no-gui                no window: the synthesizer alone, played by
+                              MIDI and controlled by OSC (chapter 28)
+  -r RATE, --sample-rate=RATE the sample rate, for example 48000
+  -b SIZE, --buffer-size=SIZE the buffer size, for example 128
+  -o SIZE, --oscil-size=SIZE  the oscillators' size
+  -A SECONDS, --auto-save=SECONDS   save automatically every so many
+                              seconds (60 by default; -A 0 never)
+  -O ENGINE, --output=ENGINE  the audio engine: PA (PortAudio, the default)
+                              or NULL (no sound, for tests)
+  -I ENGINE, --input=ENGINE   the MIDI engine: WINMIDI (the default) or NULL
+  -P PORT, --preferred-port=PORT   the UDP port for OSC
+  -e FILE, --exec-after-init=FILE  run a script after starting
+  -D FILE, --dump-json-schema=FILE   write a description of every setting
+                              (JSON) and continue
+  -d FILE, --dump-oscdoc=FILE write the OSC documentation (XML)
+  -S, --swap                  swap left and right
+
+The options -N, -a and -p are for the JACK sound system of Linux and do
+nothing on Windows.
+
+Example, a shortcut that opens a session with a small buffer:
+
+  zynaddsubfx.exe -b 128 -l "C:\Music\set.xmz"
+
+
+== 28. OSC, for advanced use
+----------------------------
+
+Every setting of ZynAddSubFX is an OSC address (Open Sound Control), and
+the program listens for OSC over UDP; at start it says "lo server running
+on" and the port (choose one with -P). Other programs, scripts and
+controllers can change any setting while you play.
+
+A message with an address and no value asks for the value; with a value it
+sets it. Examples:
+
+  /part0/Pvolume                     ask part 1's volume (parts count from 0)
+  /part0/Volume 3.0                  set part 1's volume to 3 dB
+  /part0/kit0/adpars/GlobalPar/PPanning 64     centre AddSynth's panning
+  /sysefx0/efftype 1                 make system effect 1 a reverb
+  /noteOn 0 60 100                   play middle C on channel 1, velocity 100
+  /noteOff 0 60                      stop it
+  /load_xiz 0 "C:\Banks\Bass 1.xiz"  load an instrument into part 1
+  /load_scl "C:\Scales\just.scl"     open a Scala scale
+  /load_kbm "C:\Scales\map.kbm"      open a keyboard mapping
+  /save_xsz "C:\Scales\mine.xsz"     save the tuning
+  /Panic                             stop all sound
+
+The full list of addresses, with every setting's description, range and
+default, is written by: zynaddsubfx.exe -U -D settings.json
+
+The source of this edition includes tools\osc_probe.py, a small Python
+script that sends one message and prints the answers:
+
+  python tools\osc_probe.py 7777 /part0/Pvolume
+  python tools\osc_probe.py 7777 /part0/Pvolume i:100
+
+
+== 29. Troubleshooting and questions
+------------------------------------
+
+There is no sound.
+- Is the part on? The tree says "Part 1, off" when it is not. Load an
+  instrument with Ctrl+B, or check "Part enable" in the part.
+- Is the part listening to the channel your keyboard sends on? See the
+  part's "Active MIDI channel" (section 3.3).
+- Is the MIDI keyboard seen? Options, Audio and MIDI: the MIDI input list
+  names the inputs found. Plugged in after starting: OK in that dialog
+  scans again.
+- Is the right output chosen? Options, Audio and MIDI, Audio output. Try
+  "Default output".
+- Try Ctrl+K and play a key: if that sounds, the problem is MIDI, not
+  sound.
+- Master Volume and Part Volume may be very low.
+
+The sound crackles or drops out.
+- Raise the buffer size in Settings, Audio (and restart).
+- Use a WASAPI output.
+- Lower the polyphony (a part's Voice limit), unison sizes, or PADsynth's
+  sample size; close other programs.
+
+A PADsynth change does nothing.
+- Press "Apply changes (rebuild the PADsynth samples)" in PADsynth's Sample
+  section (chapter 17).
+
+The instrument sounds different from what I expect after loading.
+- Check the effects: insertion and part effects belong to the instrument
+  or part; system effects (reverb) are shared and are not loaded with an
+  instrument.
+
+The bank browser is empty or shows banks twice.
+- Empty: the banks folder next to the program is missing; unzip the
+  package again.
+- Twice ("Arpeggios[1]", "Arpeggios[2]"): the same banks are in two bank
+  folders, for example after moving the program folder. Delete the old
+  folder from the bank folders in the settings file, or the settings file
+  itself (25.1).
+
+The screen reader does not read a value, or reads an old one.
+- Press NVDA+Tab (or the equivalent) to read the control again. Values
+  arrive from the synthesizer a moment after a group is shown.
+
+The screen reader reads a message in front of a control's name.
+- That is how messages reach NVDA (section 7.8); it goes back to the plain
+  name after a second and a half.
+
+I pressed the numeric keypad's asterisk in the tree and nothing opened.
+- Opening every group at once is switched off: the tree has millions of
+  groups. Open them one at a time with Right Arrow.
+
+How do I copy a voice or an envelope to another?
+- Copying and pasting of components is not in this edition yet. Save the
+  instrument and load it into another part, or use Alt+Left and Alt+Right
+  to compare settings group by group.
+
+Can I connect a knob of my MIDI keyboard to any setting (MIDI learn)?
+- Not from this interface yet. The synthesizer has MIDI learn; its
+  mappings can be made with upstream's tools and opened with the -M option
+  (chapter 27). The controllers in chapter 26 work without any mapping.
+
+Where are upstream's graphical parts, like the oscilloscope?
+- They are removed. The values they showed are all in the settings.
+
+Can I use it as a plugin in my DAW?
+- Not with this interface yet. The program can run alongside a DAW and be
+  played by MIDI (with a virtual MIDI cable such as loopMIDI).
+
+
+== 30. All keys
+---------------
+
+Anywhere in the main window
+  F1                  the list of keys
+  F6, Shift+F6        tree or settings
+  Ctrl+N              new
+  Ctrl+O              open a session
+  Ctrl+S              save the session
+  Ctrl+B              instrument banks
+  Ctrl+I              open an instrument into the current part
+  Ctrl+Shift+S        save the current part as an instrument
+  Ctrl+K              play from the computer keyboard
+  Ctrl+F              find a setting
+  Ctrl+Z, Ctrl+Y      undo, redo
+  Ctrl+Comma          audio and MIDI devices
+  Alt+Left, Alt+Right previous or next group of the same kind
+  Alt+F4              exit
+  Alt, F10            the menu bar
+
+In the tree
+  Up, Down            previous, next group
+  Right, Left         open, close (or into, out of) a group
+  Home, End           first, last group
+  letters             jump to a group by its name
+
+In the settings
+  Tab, Shift+Tab      next, previous control
+  Ctrl+Down, Ctrl+Up  next, previous section
+  Escape              (in dialogs) close
+
+On a slider
+  Up, Right           one step up
+  Down, Left          one step down
+  Page Up, Page Down  ten steps
+  Home, End           lowest, highest
+  Enter               type a value
+  Backspace           default value
+
+On a list
+  Up, Down            change the choice
+  Alt+Down            open the list
+  Backspace           default choice
+
+On a check box
+  Space               switch
+  Backspace           default
+
+In an edit box
+  Enter               apply
+
+In a multi-line text box
+  Enter               new line
+  Ctrl+Enter          apply
+  Tab, Shift+Tab      leave the box
+
+In the bank browser
+  Up, Down            bank or instrument
+  Tab                 between banks, instruments, part, buttons
+  Space (hold)        play the selected instrument
+  Enter               load it
+  Escape              close
+
+In the play window
+  Z to slash          one octave (white keys), with S D G H J L ; black
+  Q to P              the next octave, with 2 3 5 6 7 9 0 black
+  Page Up, Page Down  octave up, down
+  Up, Down            velocity up, down
+  Escape              close
+
+
+== 31. Building from source, and the test tools
+-----------------------------------------------
+
+The source is the accessible branch of github.com/dengopaiv/zynaddsubfx.
+
+You need Visual Studio 2022 or newer with the C++ desktop workload, CMake
+3.24 or newer, Git, and vcpkg (the environment variable VCPKG_ROOT set to
+its folder). The dependencies (zlib, fftw3, mxml, liblo, PortAudio, getopt)
+are listed in vcpkg.json and installed by vcpkg during the build.
+
+  git clone --recurse-submodules -b accessible https://github.com/dengopaiv/zynaddsubfx
+  cd zynaddsubfx
+  cmake -S . -B build -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
+  cmake --build build --config Release
+  cd build
+  ctest -C Release
+  cd ..
+  python tools\package.py build\src\Release dist
+
+The last line makes the zip in the dist folder.
+
+Where things are in the source:
+
+- src\UI\Win32: the accessible interface. Win32Ui.cpp is the window, the
+  tree, the panes, the dialogs and the keys; PortModel.cpp reads the
+  synthesizer's descriptions of its settings; Overlay.cpp holds what they
+  do not say (names, units, sections, hidden groups); Access.cpp is the
+  screen reader support (names, values, announcements).
+- src\Nio: sound and MIDI (PaEngine.cpp for output, WinMidiEngine.cpp for
+  MIDI input).
+- the rest of src: the synthesizer, as upstream.
+
+Test tools, in Python (comtypes needed for the interface tests):
+
+- tools\uia_check.py: starts the program and lists what a screen reader
+  gets from chosen groups: each control's role, name, value and
+  description. With --sweep it visits every group and reports any control
+  without a name and any slider without a value.
+- tools\dump_panes.py: lists every group and its controls; used to keep
+  this manual in step with the program.
+- tools\hidden_desktop.py: runs a command on a hidden Windows desktop, so
+  that the test windows never appear on the screen or take the keyboard
+  focus. For example:
+  python tools\hidden_desktop.py python tools\uia_check.py build\src\Release\zynaddsubfx.exe --sweep
+- tools\osc_probe.py: sends one OSC message to a running program (28).
+- tools\package.py: makes the release zip.
+
+The plan of the whole work, with its decisions and status, is
+ACCESSIBILITY-ROADMAP.md in the source.
+
+
+== 32. Credits and licence
+--------------------------
+
+ZynAddSubFX was created by Nasca Octavian Paul (2002 to 2013) and is
+maintained by Mark McCurry (since 2009), with many contributors, listed in
+AUTHORS.txt. Its synthesizer, effects, file formats and instrument banks
+are theirs.
+
+The accessible Windows interface, the Windows sound and MIDI support and
+this manual: dengopaiv, with Claude.
+
+ZynAddSubFX is free software under the GNU General Public License, version
+2 or later (COPYING.txt). You may use, share and change it; if you share
+changed versions, share their source under the same licence.
