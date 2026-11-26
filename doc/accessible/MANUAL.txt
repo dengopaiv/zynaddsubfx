@@ -576,7 +576,8 @@ so on) open a menu directly. Shortcuts are shown next to each command.
   (Part 1 when you are not in a part).
 - Save current part as instrument... (Ctrl+Shift+S): save the current part
   as an instrument file (.xiz).
-- Record to WAV file, or stop recording... (Ctrl+R): section 9.8.
+- Record to WAV file... (Ctrl+R), called Stop recording while recording:
+  section 9.8.
 - Open Scala scale (.scl)...: open a scale for the tuning (chapter 23).
   Then switch Tuning on.
 - Open Scala keyboard mapping (.kbm)...: open a keyboard mapping for the
@@ -766,15 +767,31 @@ file:
 1. Press Ctrl+R. The Save dialog asks for the file's name and folder (a
    name ending in .wav; an existing file is replaced after asking).
 2. The program says "Ready to record into song.wav. Recording starts with
-   the next note. Ctrl+R stops it", and the status bar keeps saying so.
+   the next note. Ctrl+R stops it". The File menu item is now called
+   "Stop recording".
 3. Recording starts with the next note that is played, from a MIDI
-   keyboard, the play window (Ctrl+K) or the held note (F5). The silence
-   before the first note is not recorded.
+   keyboard, the play window (Ctrl+K) or the held note (F5). The program
+   says "Recording into song.wav" at that moment. The silence before the
+   first note is not recorded.
 4. Play. Everything that sounds is recorded: all parts, with their effects
    and the system effects, after the master volume, as you hear it.
 5. Press Ctrl+R again to stop. The program says "Recording stopped. Saved
-   song.wav". The file is complete only now. Closing the program while
-   recording also stops and completes it.
+   song.wav". The file is complete only now. If no note was played, it
+   says "Recording stopped. No note was played, so song.wav is empty".
+
+The program always says when a recording stops, also when you did not
+press Ctrl+R:
+
+- File, New and File, Open replace the whole synthesizer, its recorder
+  too, so they stop the recording first: "Before opening: Recording
+  stopped. Saved song.wav" (or "Before the reset: ...").
+- If the recording stops for any other reason, the program notices within
+  a quarter of a second and says "Recording stopped. Saved song.wav".
+- Closing the program while recording stops and completes the file.
+
+The status bar keeps the last message, so to check whether you are still
+recording, read the status bar, or open the File menu: it says either
+"Record to WAV file" or "Stop recording".
 
 The file is a standard WAV file: stereo, 16-bit, at the synthesizer's
 sample rate (44100 Hz by default; chapter 24). Any audio editor or player

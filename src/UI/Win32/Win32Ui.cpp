@@ -194,6 +194,7 @@ int  gHoldChan = 0, gHoldPlaying = 48;    //what is sounding now
 
 //Recording to a WAV file (the synthesizer's HDD recorder)
 bool         gRecording = false;
+bool         gRecordSounding = false; //the first note has come
 std::wstring gRecordFile;
 
 //Playing from the computer keyboard
@@ -1294,6 +1295,68 @@ void openPlay()
         L"change octave, Up and Down velocity. Escape closes.");
 }
 
+// ------------------------------------------------------ recording
+
+constexpr UINT_PTR kRecordTimer = 0x5A3;
+
+//! The File menu names what Ctrl+R will do now
+void updateRecordMenu()
+{
+    HMENU m = gMain ? GetMenu(gMain) : nullptr;
+    if(m)
+        ModifyMenuW(m, IDM_RECORD, MF_BYCOMMAND | MF_STRING, IDM_RECORD,
+                    gRecording ? L"Stop &recording\tCtrl+R"
+                               : L"&Record to WAV file...\tCtrl+R");
+}
+
+void recordingEnded(const std::wstring &why)
+{
+    const bool sounded = gRecordSounding;
+    gRecording = gRecordSounding = false;
+    KillTimer(gMain, kRecordTimer);
+    updateRecordMenu();
+    say(why + L"Recording stopped. " +
+        (sounded ? L"Saved " + gRecordFile
+                 : L"No note was played, so " + gRecordFile + L" is empty"));
+}
+
+void startRecording(const std::string &file)
+{
+    send("/HDDRecorder/preparefile", "s", file.c_str());
+    send("/HDDRecorder/start", "");
+    gRecording      = true;
+    gRecordSounding = false;
+    gRecordFile     = fileName(file);
+    updateRecordMenu();
+    //the recorder is asked how it is doing, to tell when it starts and
+    //when it stops for any reason
+    SetTimer(gMain, kRecordTimer, 250, nullptr);
+    say(L"Ready to record into " + gRecordFile + L". Recording starts with "
+        L"the next note. Ctrl+R stops it");
+}
+
+//! Ctrl+R, or before something that replaces the recorder (New, Open)
+void stopRecording(const std::wstring &why)
+{
+    if(!gRecording)
+        return;
+    send("/HDDRecorder/stop", "");
+    recordingEnded(why);
+}
+
+//! The recorder's answer to /HDDRecorder/status
+void recorderStatus(int state)
+{
+    if(!gRecording)
+        return;
+    if(state == 0) //stopped without Ctrl+R
+        recordingEnded(L"");
+    else if(state == 2 && !gRecordSounding) {
+        gRecordSounding = true;
+        say(L"Recording into " + gRecordFile);
+    }
+}
+
 // ------------------------------------------------------ the held note
 
 //! MIDI note number as a name: 60 is C4
@@ -1439,6 +1502,10 @@ void requestPartNames()
 //! Replies the tree and the bank browser want (whatever the pane shows)
 void handleSideMessage(const char *msg, const char *args)
 {
+    if(!strcmp(msg, "/HDDRecorder/status") && args[0] == 'i') {
+        recorderStatus(rtosc_argument(msg, 0).i);
+        return;
+    }
     if(!gEngineSwitch.empty() && gEngineSwitch == msg &&
        (args[0] == 'T' || args[0] == 'F')) {
         gEngineOff = args[0] == 'F';
@@ -1880,6 +1947,7 @@ void command(int id)
         case IDM_NEW:
             if(MessageBoxW(gMain, L"Reset every part and setting?", L"New",
                            MB_YESNO | MB_ICONQUESTION) == IDYES) {
+                stopRecording(L"Before the reset: ");
                 send("/reset_master", "");
                 say(L"Reset");
             }
@@ -1887,6 +1955,7 @@ void command(int id)
         case IDM_OPEN:
             if(fileDialog(false, L"Master files (*.xmz)\0*.xmz\0All files\0*.*\0",
                           L"xmz", f)) {
+                stopRecording(L"Before opening: ");
                 send("/load_xmz", "s", f.c_str());
                 say(L"Opening " + fileName(f));
             }
@@ -2007,19 +2076,11 @@ void command(int id)
             toggleHoldNote();
             break;
         case IDM_RECORD:
-            if(gRecording) {
-                send("/HDDRecorder/stop", "");
-                gRecording = false;
-                say(L"Recording stopped. Saved " + gRecordFile);
-            } else if(fileDialog(true, L"Wave files (*.wav)\0*.wav\0", L"wav",
-                                 f)) {
-                send("/HDDRecorder/preparefile", "s", f.c_str());
-                send("/HDDRecorder/start", "");
-                gRecording  = true;
-                gRecordFile = fileName(f);
-                say(L"Ready to record into " + gRecordFile + L". Recording "
-                    L"starts with the next note. Ctrl+R stops it");
-            }
+            if(gRecording)
+                stopRecording(L"");
+            else if(fileDialog(true, L"Wave files (*.wav)\0*.wav\0", L"wav",
+                               f))
+                startRecording(f);
             break;
         case IDM_HOLD_NOTE_SETTINGS:
             if(DialogBoxParamW(gInst, MAKEINTRESOURCEW(IDD_HOLDNOTE), gMain,
@@ -2058,7 +2119,7 @@ HMENU makeMenu()
                 L"Save current part as instr&ument...\tCtrl+Shift+S");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, IDM_RECORD,
-                L"&Record to WAV file, or stop recording...\tCtrl+R");
+                L"&Record to WAV file...\tCtrl+R");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, IDM_OPEN_SCL, L"Open Scala s&cale (.scl)...");
     AppendMenuW(file, MF_STRING, IDM_OPEN_KBM,
@@ -2386,6 +2447,10 @@ LRESULT CALLBACK mainProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER:
             if(access::onTimer(wp))
                 return 0;
+            if(wp == kRecordTimer) {
+                send("/HDDRecorder/status", "");
+                return 0;
+            }
             if(wp == kRefreshTimer) { //refreshPaneSoon
                 KillTimer(h, kRefreshTimer);
                 for(auto &c : gCtls)

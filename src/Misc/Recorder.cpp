@@ -35,6 +35,12 @@ const rtosc::Ports Recorder::ports = {
         rBOIL_BEGIN
         obj->stop();
         rBOIL_END },
+    {"status:", rDoc("Recording state: 0 stopped, 1 waiting for the first "
+                     "note, 2 recording"), 0,
+        rBOIL_BEGIN
+        data.reply(loc, "i", obj->status == 0 ? 0
+                            : (obj->status == 2 && obj->notetrigger) ? 2 : 1);
+        rBOIL_END },
     {"pause:", rDoc("Pause recording"), 0,
         rBOIL_BEGIN;
         obj->pause();
