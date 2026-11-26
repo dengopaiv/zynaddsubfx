@@ -186,6 +186,12 @@ int  gPreviewNote  = -1, gPreviewChan = 0;
 //what Space last loaded, so holding it again does not load it again
 int  gPreviewSlot = -1, gPreviewPart = -1, gPreviewBank = -1;
 
+//The held note (F5): one note that sounds until F5 again, to listen while
+//editing. Its note and velocity are kept in the interface's own settings.
+int  gHoldNote = 48, gHoldVelocity = 100; //C3
+bool gHoldOn   = false;
+int  gHoldChan = 0, gHoldPlaying = 48;    //what is sounding now
+
 //Playing from the computer keyboard
 HWND gPlayWnd     = nullptr;
 int  gPlayOctave  = 4, gPlayVelocity = 100;
@@ -197,6 +203,7 @@ enum {
     IDM_SWITCH_PANE, IDM_FOCUS_TREE, IDM_BANK, IDM_PLAY, IDM_PREV_GROUP,
     IDM_NEXT_GROUP, IDM_FIND, IDM_NEXT_SECTION, IDM_PREV_SECTION,
     IDM_OPEN_SCL, IDM_OPEN_KBM, IDM_OPEN_XSZ, IDM_SAVE_XSZ,
+    IDM_HOLD_NOTE, IDM_HOLD_NOTE_SETTINGS,
 };
 
 int px(int v) { return MulDiv(v, (int)gDpi, 96); }
@@ -1283,6 +1290,113 @@ void openPlay()
         L"change octave, Up and Down velocity. Escape closes.");
 }
 
+// ------------------------------------------------------ the held note
+
+//! MIDI note number as a name: 60 is C4
+std::wstring noteNameOf(int n)
+{
+    static const wchar_t *names[12] = {L"C", L"C sharp", L"D", L"D sharp",
+        L"E", L"F", L"F sharp", L"G", L"G sharp", L"A", L"A sharp", L"B"};
+    if(n < 0 || n > 127)
+        return std::to_wstring(n);
+    return std::wstring(names[n % 12]) + std::to_wstring(n / 12 - 1);
+}
+
+//! The interface's own settings: %APPDATA%\ZynAddSubFX\accessible-ui.ini
+std::wstring uiSettingsFile()
+{
+    wchar_t buf[MAX_PATH * 2] = L"";
+    DWORD n = GetEnvironmentVariableW(L"APPDATA", buf, MAX_PATH * 2);
+    std::wstring dir = n ? std::wstring(buf) + L"\\ZynAddSubFX" : L".";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    return dir + L"\\accessible-ui.ini";
+}
+
+void loadUiSettings()
+{
+    const std::wstring f = uiSettingsFile();
+    gHoldNote = GetPrivateProfileIntW(L"HeldNote", L"Note", 48, f.c_str());
+    gHoldVelocity = GetPrivateProfileIntW(L"HeldNote", L"Velocity", 100,
+                                          f.c_str());
+    if(gHoldNote < 0 || gHoldNote > 127)
+        gHoldNote = 48;
+    if(gHoldVelocity < 1 || gHoldVelocity > 127)
+        gHoldVelocity = 100;
+}
+
+void saveUiSettings()
+{
+    const std::wstring f = uiSettingsFile();
+    WritePrivateProfileStringW(L"HeldNote", L"Note",
+                               std::to_wstring(gHoldNote).c_str(), f.c_str());
+    WritePrivateProfileStringW(L"HeldNote", L"Velocity",
+                               std::to_wstring(gHoldVelocity).c_str(),
+                               f.c_str());
+}
+
+void holdNoteOff()
+{
+    if(!gHoldOn)
+        return;
+    send("/noteOff", "ii", gHoldChan, gHoldPlaying);
+    gHoldOn = false;
+}
+
+//! F5: the held note on, or off again
+void toggleHoldNote()
+{
+    if(gHoldOn) {
+        holdNoteOff();
+        say(L"Held note off");
+        return;
+    }
+    gHoldChan    = currentPart() % 16;
+    gHoldPlaying = gHoldNote;
+    send("/noteOn", "iii", gHoldChan, gHoldPlaying, gHoldVelocity);
+    gHoldOn = true;
+    say(L"Holding " + noteNameOf(gHoldPlaying) + L" on part " +
+        std::to_wstring(currentPart() + 1) + L". F5 stops it");
+}
+
+INT_PTR CALLBACK holdNoteProc(HWND dlg, UINT msg, WPARAM wp, LPARAM)
+{
+    switch(msg) {
+        case WM_INITDIALOG: {
+            HWND n = GetDlgItem(dlg, IDC_HOLD_NOTE);
+            for(int i = 0; i < 128; ++i)
+                SendMessageW(n, CB_ADDSTRING, 0, (LPARAM)(noteNameOf(i) +
+                             L" (" + std::to_wstring(i) + L")").c_str());
+            SendMessageW(n, CB_SETCURSEL, gHoldNote, 0);
+            HWND v = GetDlgItem(dlg, IDC_HOLD_VELOCITY);
+            for(int i = 1; i <= 127; ++i)
+                SendMessageW(v, CB_ADDSTRING, 0,
+                             (LPARAM)std::to_wstring(i).c_str());
+            SendMessageW(v, CB_SETCURSEL, gHoldVelocity - 1, 0);
+            return TRUE;
+        }
+        case WM_COMMAND:
+            if(LOWORD(wp) == IDOK) {
+                int n = (int)SendDlgItemMessageW(dlg, IDC_HOLD_NOTE,
+                                                 CB_GETCURSEL, 0, 0);
+                int v = (int)SendDlgItemMessageW(dlg, IDC_HOLD_VELOCITY,
+                                                 CB_GETCURSEL, 0, 0);
+                if(n >= 0)
+                    gHoldNote = n;
+                if(v >= 0)
+                    gHoldVelocity = v + 1;
+                saveUiSettings();
+                EndDialog(dlg, IDOK);
+                return TRUE;
+            }
+            if(LOWORD(wp) == IDCANCEL) {
+                EndDialog(dlg, IDCANCEL);
+                return TRUE;
+            }
+            break;
+    }
+    return FALSE;
+}
+
 // ------------------------------------------------- part names in tree
 
 void updatePartItem(int part)
@@ -1745,6 +1859,8 @@ const wchar_t *kHelp =
     L"Ctrl+S: save a master file\n"
     L"Ctrl+B: instrument banks (Enter loads, Space plays a note)\n"
     L"Ctrl+K: play from the computer keyboard\n"
+    L"F5: hold a note on the current part while you edit; F5 again stops it "
+    L"(Options, Held note and velocity, chooses the note)\n"
     L"Ctrl+I: open an instrument (.xiz) into the current part\n"
     L"Ctrl+Shift+S: save the current part as an instrument\n"
     L"Ctrl+Z, Ctrl+Y: undo, redo\n"
@@ -1882,6 +1998,16 @@ void command(int id)
         case IDM_FIND:
             findSetting();
             break;
+        case IDM_HOLD_NOTE:
+            toggleHoldNote();
+            break;
+        case IDM_HOLD_NOTE_SETTINGS:
+            if(DialogBoxParamW(gInst, MAKEINTRESOURCEW(IDD_HOLDNOTE), gMain,
+                               holdNoteProc, 0) == IDOK)
+                say(L"Held note: " + noteNameOf(gHoldNote) + L", velocity " +
+                    std::to_wstring(gHoldVelocity) +
+                    (gHoldOn ? L". It applies from the next F5" : L""));
+            break;
         case IDM_NEXT_SECTION:
         case IDM_PREV_SECTION:
             if(!jumpSection(id == IDM_NEXT_SECTION ? 1 : -1))
@@ -1934,6 +2060,10 @@ HMENU makeMenu()
                 L"Ne&xt section of the settings\tCtrl+Down");
     AppendMenuW(go, MF_STRING, IDM_PREV_SECTION,
                 L"Pre&vious section of the settings\tCtrl+Up");
+    AppendMenuW(opts, MF_STRING, IDM_HOLD_NOTE,
+                L"&Hold a note on or off\tF5");
+    AppendMenuW(opts, MF_STRING, IDM_HOLD_NOTE_SETTINGS,
+                L"Held &note and velocity...");
     AppendMenuW(opts, MF_STRING, IDM_PLAY,
                 L"&Play from computer keyboard...\tCtrl+K");
     AppendMenuW(opts, MF_STRING, IDM_SETTINGS, L"&Audio and MIDI...\tCtrl+Comma");
@@ -1966,6 +2096,7 @@ HACCEL makeAccel()
         {FALT | FVIRTKEY, VK_LEFT, IDM_PREV_GROUP},
         {FALT | FVIRTKEY, VK_RIGHT, IDM_NEXT_GROUP},
         {FCONTROL | FVIRTKEY, 'F', IDM_FIND},
+        {FVIRTKEY, VK_F5, IDM_HOLD_NOTE},
     };
     return CreateAcceleratorTableW(a, sizeof(a) / sizeof(a[0]));
 }
@@ -2257,6 +2388,7 @@ LRESULT CALLBACK mainProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
             DestroyWindow(h);
             return 0;
         case WM_DESTROY:
+            holdNoteOff();
             clearPane();
             access::shutdown();
             gMain = gTree = gView = gCanvas = gStatus = gTreeLabel = nullptr;
@@ -2500,6 +2632,7 @@ ui_handle_t createUi(Fl_Osc_Interface *, void *exit)
     TreeView_SelectItem(gTree, root);
     SetFocus(gTree);
     requestPartNames();
+    loadUiSettings();
     status(L"Ready. F1 lists the keys.");
     return (ui_handle_t)gMain;
 }

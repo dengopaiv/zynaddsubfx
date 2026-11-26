@@ -247,6 +247,10 @@ This walk-through uses only the keyboard.
 10. Choose "Amplitude envelope" and press F6. The focus moves to its
     settings. Tab to "Attack Time", press Up Arrow a few times, and play:
     the notes now fade in more slowly.
+    To hear a change while you make it, press F5: a note (C3) keeps
+    sounding on the part until you press F5 again (section 9.7). Try it
+    with "Sustain Value": the held note gets louder or softer as you move
+    the slider.
 11. Press Ctrl+Z to undo the change, or Backspace on the slider to put it
     back to its default.
 12. Press Ctrl+Shift+S to save the changed instrument as an .xiz file, or
@@ -598,6 +602,8 @@ so on) open a menu directly. Shortcuts are shown next to each command.
 
 --- 8.4 Options
 
+- Hold a note on or off (F5): section 9.7.
+- Held note and velocity...: section 9.7.
 - Play from computer keyboard... (Ctrl+K): section 9.6.
 - Audio and MIDI... (Ctrl+Comma): section 9.3.
 
@@ -706,11 +712,52 @@ If the window loses the focus while notes are held, they stop.
 The current part is the part of the group chosen in the tree. To play part
 3, choose Part 3 (or anything inside it) in the tree first, then Ctrl+K.
 
---- 9.7 Restore
+--- 9.7 Hold a note while you edit: F5
+
+To hear a sound change while you change it, you need a note that keeps
+sounding. F5 does that, from anywhere in the program:
+
+- F5 starts the held note on the current part (the part of the group
+  chosen in the tree). The program says "Holding C3 on part 1. F5 stops
+  it." The note sounds until you press F5 again, while you go through the
+  tree, change settings, open dialogs and so on. Every change is heard at
+  once.
+- F5 again stops it ("Held note off"). Closing the program stops it too.
+  Stop all sound in Master silences it as well, but the program still
+  counts it as held: the next F5 says "Held note off", and the one after
+  starts it again.
+
+The note goes to the part that was current when you pressed F5, even if
+you then move to another part's settings. To hear another part, stop the
+note, choose that part in the tree, and press F5 again.
+
+Options, Held note and velocity... chooses which note F5 holds and how
+hard it is played:
+
+- Note: every note from C-1 (0) to G9 (127), by name and number. C3 (48) by
+  default. For a bass sound C2 (36) or lower may suit better, for a lead C4
+  (60) or higher.
+- Velocity: 1 to 127, 100 by default. Many sounds change with velocity, so
+  this is worth trying too.
+- OK saves the choice; it is kept for the next time you start the program
+  (in %APPDATA%\ZynAddSubFX\accessible-ui.ini). A note that is already
+  sounding keeps its old pitch until you press F5 twice.
+
+Sounds with a short envelope (a piano, a plucked string) fade out even
+while the note is held, as on a real instrument: press F5 twice to hear the
+start again, or lengthen the sustain in the amplitude envelope while you
+work on the rest.
+
+Other ways to hear a sound while editing: hold a key of a MIDI keyboard
+(or its sustain pedal) with one hand and edit with the other; or set the
+part's Synthesis polyphony type to Latch (12.3), play notes with the play
+window, close it, and edit while they keep sounding.
+
+--- 9.8 Restore
 
 At the start after a crash: section 2.5.
 
---- 9.8 Messages from the synthesizer
+--- 9.9 Messages from the synthesizer
 
 Some errors come from the synthesizer itself, for example when a file
 cannot be read or a tuning text has an error. They are spoken and shown in
@@ -1957,6 +2004,7 @@ Anywhere in the main window
   Ctrl+I              open an instrument into the current part
   Ctrl+Shift+S        save the current part as an instrument
   Ctrl+K              play from the computer keyboard
+  F5                  hold a note on the current part, or stop it
   Ctrl+F              find a setting
   Ctrl+Z, Ctrl+Y      undo, redo
   Ctrl+Comma          audio and MIDI devices
