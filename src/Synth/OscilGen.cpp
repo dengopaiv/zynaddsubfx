@@ -1881,7 +1881,11 @@ FILTER(bp1)
 FILTER(bs1)
 {
     float gain = i + 1 - powf(2, (1.0f - par) * 7.5f);
-    gain = powf(atanf(gain / (i / 10.0f + 1)) / 1.57f, 6);
+    // x^6 by multiplication: with MSVC /fp:fast, powf(powf(x, 6), y) is
+    // folded into powf(x, 6 * y), which is NaN for the negative x here.
+    float t = atanf(gain / (i / 10.0f + 1)) / 1.57f;
+    t    = t * t;
+    gain = t * t * t;
     return powf(gain, par2 * par2 * 3.9f + 0.1f);
 }
 
